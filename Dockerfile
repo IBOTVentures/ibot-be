@@ -15,4 +15,4 @@ COPY . /app/
 EXPOSE 8000
 
 # Run the Django development server
-CMD ["python", "iBot_lms/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "ibot_lms/manage.py", "runserver", "0.0.0.0:8000"]
