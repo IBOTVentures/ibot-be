@@ -91,7 +91,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'iBot_lms.wsgi.application'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "*",
 ]
 CORS_ALLOWED_METHODS = [
     "DELETE",
