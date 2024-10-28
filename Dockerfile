@@ -1,6 +1,9 @@
 # Use an official Python runtime as a base image
 FROM python:3.12.6
 
+# Install bash
+RUN apt-get update && apt-get install -y bash
+
 # Set the working directory inside the container
 WORKDIR /app
 
