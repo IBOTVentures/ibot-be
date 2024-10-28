@@ -3,3 +3,6 @@
 
 # Ignore Python virtual environment directory
 venv/
+
+# Ignore log files
+iBot_lms/requests.log
