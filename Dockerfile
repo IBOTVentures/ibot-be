@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Copy the requirements file and install dependencies
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r req.txt
 RUN chmod 666 /app/ibot_lms/requests.log
 
 # Copy the entire project directory into the container
