@@ -1,21 +1,21 @@
-# Use an official Python runtime as a base image
 FROM python:3.12.6
 
-# Install bash
 RUN apt-get update && apt-get install -y bash
 
-# Set the working directory inside the container
+# Create a new user and set permissions
+RUN useradd -m appuser
+
+# Set the working directory
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY req.txt /app/
-RUN pip install -r req.txt
+# Copy your application code
+COPY . .
 
-# Copy the entire project directory into the container
-COPY . /app/
+# Install your requirements
+RUN pip install -r requirements.txt
 
-# Expose port 8000 for Django
-EXPOSE 8000
+# Switch to the new user
+USER appuser
 
-# Run the Django development server
-CMD ["python", "ibot_lms/manage.py", "runserver", "0.0.0.0:8000"]
+# Set the default command to run your application (if needed)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
