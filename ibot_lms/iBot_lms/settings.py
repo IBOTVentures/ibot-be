@@ -182,7 +182,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'requests.log',
+            'filename': '/app/ibot_lms/requests.log',
             'formatter': 'verbose',
         },
         'console': {  # Console handler can be disabled or configured

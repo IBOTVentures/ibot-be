@@ -1,34 +1,22 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12
+# Use an official Python runtime as a base image
+FROM python:3.12.6
 
-# Set environment variables to prevent Python from writing .pyc files
-# and to ensure that the output is sent straight to the terminal
-# (for easier debugging).
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Install bash and any additional dependencies
+RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
 
-# Create a new user
-RUN useradd -m appuser
-
-# Set the working directory in the container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
+# Copy the requirements file and install dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+RUN chmod 666 /app/ibot_lms/requests.log
+
+# Copy the entire project directory into the container
 COPY . .
 
-# Create the log file and set permissions
-RUN touch /app/requests.log && \
-    chown appuser:appuser /app/requests.log && \
-    chmod 664 /app/requests.log
-
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r req.txt
-
-# Switch to the new user
-USER appuser
-
-# Expose the port the app runs on
+# Expose port 8000 for Django
 EXPOSE 8000
 
-# Run the application (replace with your actual command if different)
+# Run the Django development server
 CMD ["python", "ibot_lms/manage.py", "runserver", "0.0.0.0:8000"]
