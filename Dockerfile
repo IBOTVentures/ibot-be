@@ -22,7 +22,7 @@ RUN touch /app/requests.log && \
     chmod 664 /app/requests.log
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r req.txt
 
 # Switch to the new user
 USER appuser
