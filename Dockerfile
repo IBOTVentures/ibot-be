@@ -12,7 +12,7 @@ WORKDIR /app
 COPY . .
 
 # Install your requirements
-RUN pip install -r requirements.txt
+RUN pip install -r req.txt
 
 # Switch to the new user
 USER appuser
