@@ -18,4 +18,4 @@ RUN pip install -r req.txt
 USER appuser
 
 # Set the default command to run your application (if needed)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "ibot_lms/manage.py", "runserver", "0.0.0.0:8000"]
