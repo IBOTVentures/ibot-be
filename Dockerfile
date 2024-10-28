@@ -13,6 +13,8 @@ COPY . .
 
 # Install your requirements
 RUN pip install -r req.txt
+RUN chown -R appuser:appuser /app/requests.log
+RUN chmod 664 /app/requests.log
 
 # Switch to the new user
 USER appuser
