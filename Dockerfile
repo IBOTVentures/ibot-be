@@ -7,8 +7,6 @@ RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY req.txt /app/
 RUN pip install -r /app/req.txt
 RUN chmod 666 /app/ibot_lms/requests.log
 
