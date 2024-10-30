@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CertificationAPIView, CourseListView,StatisticsAPIView, CourseTaskModuleCountAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignUpAPIView, SignInAPIView, OfflinePurchaseUserAPIView, TaskAPIView, TaskUpdateAPIView, UserCourseProgressUpdateView, UserCourseProgressView, FileRecieverAPIView, CourseAPIView, CourseUpdateAPIView, ModuleAPIView, ModuleUpdateAPIView, AssessmentAPIView, AssessmentUpdateAPIView
+from .views import CertificationAPIView,TaskStatusAPIView, AddAPIView, CourseListView,StatisticsAPIView, CourseTaskModuleCountAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignUpAPIView, SignInAPIView, OfflinePurchaseUserAPIView, TaskAPIView, TaskUpdateAPIView, UserCourseProgressUpdateView, UserCourseProgressView, FileRecieverAPIView, CourseAPIView, CourseUpdateAPIView, ModuleAPIView, ModuleUpdateAPIView, AssessmentAPIView, AssessmentUpdateAPIView
 
 urlpatterns = [
     path('order/', OrderAPIView.as_view(), name='order'),    
@@ -23,4 +23,7 @@ urlpatterns = [
     path('coursetaskmodulecount/', CourseTaskModuleCountAPIView.as_view(), name='course-task-module-count'),
     path('courses/', CourseListView.as_view(), name='course-list'),
     path('statistics/', StatisticsAPIView.as_view(), name='statistics'),
+    
+    path('add/', AddAPIView.as_view(), name='add'),
+    path('taskstatus/', TaskStatusAPIView.as_view(), name='task-status'),
 ]

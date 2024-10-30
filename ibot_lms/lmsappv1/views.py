@@ -16,10 +16,33 @@ import os
 from django.shortcuts import get_object_or_404
 import logging
 from rest_framework import generics
+from .tasks import add
+from celery.result import AsyncResult
 
 logger = logging.getLogger(__name__)
 UPLOAD_DIR = '/media/'
 client = razorpay.Client(auth=("rzp_test_88QnZEgha1Ucxs", "yMHU4vBu66sKyux6DJ7OfKu8"))
+
+class AddAPIView(APIView):
+    def post(self, request):
+        data = request.data
+        x = data.get('x')
+        y = data.get('y')
+        value = add.delay(x, y)
+        return Response({'data': value.id}, status=status.HTTP_200_OK)
+    
+class TaskStatusAPIView(APIView):
+    def get(self, request):
+        task_id = request.query_params.get('task_id')
+        task_result = AsyncResult(task_id)
+        
+        if task_result.ready():
+            # Task is complete, return the result
+            return Response({'status': 'completed', 'data': task_result.result}, status=status.HTTP_200_OK)
+        else:
+            # Task is still running
+            return Response({'status': 'pending'}, status=status.HTTP_202_ACCEPTED)
+
 
 class SignInAPIView(APIView):
     def post(self, request):
@@ -50,7 +73,7 @@ class SignInAPIView(APIView):
                     {
                         "token": str(token),
                         "access": str(refresh.access_token),
-                        "data": {"user_id":user.id, "subscription":user.subscription},  # Correctly access .data
+                        "data": {"user_id":user.id, "subscription":user.subscription, "user_role":user.role},  # Correctly access .data
                         "message": "User logged in successfully",
                     },
                     status=status.HTTP_200_OK,

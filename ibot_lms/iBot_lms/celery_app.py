@@ -7,7 +7,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'iBot_lms.settings')
 app = Celery('iBot_lms')
 app.conf.enable_utc = False
 app.conf.update(timezone='Asia/Kolkata')
-
+app.conf.beat_schedule = {}
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.autodiscover_tasks()

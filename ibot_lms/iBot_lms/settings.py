@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_celery_results',
+    'django_celery_beat',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -168,7 +169,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Kolkata'
 CELERY_RESULT_BACKEND = 'django-db'
-
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
