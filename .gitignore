@@ -1,8 +1,9 @@
-# Ignore environment variables file
 .env
-
-# Ignore Python virtual environment directory
+req.txt
 venv/
-
+.DS_Store
+__pycache__/
+*.pyc
+media/
 # Ignore log files
 iBot_lms/requests.log
