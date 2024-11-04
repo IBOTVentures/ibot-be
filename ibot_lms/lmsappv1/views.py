@@ -215,6 +215,27 @@ class OfflinePurchaseUserAPIView(APIView):
         offline_purchase.delete()
         return Response({'message': 'Offline purchase deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     
+class FetchCoursePreview(APIView):
+    def post(self, request):
+        try:
+            data = request.data
+            course_id = data.get('courseid')
+            if not course_id:
+                return Response({'error': 'courseid not provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch course with related modules and assessments in a single query
+            course = Course.objects.prefetch_related('modules__assessment_set').get(id=course_id)
+
+            # Serialize course data
+            course_serializer = CourseSerializer(course)
+
+            return Response({'data': course_serializer.data}, status=status.HTTP_200_OK)
+
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 class FileRecieverAPIView(APIView):
     UPLOAD_DIR = 'E:/iBOT Ventures/media/'  # Specify your upload directory
     def post(self, request, format=None):
