@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, ProductKit
+from django.core.files.storage import default_storage
 
 # Serializer for User model
 class UserSerializer(serializers.ModelSerializer):
@@ -10,7 +11,17 @@ class UserSerializer(serializers.ModelSerializer):
 class UserdetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        exclude = ['password']
+        exclude = ['password']  
+
+    def update(self, instance, validated_data):
+        new_image = validated_data.get('profile')
+        if new_image and instance.profile:
+            old_image_path = instance.profile.path
+            if default_storage.exists(old_image_path):
+                default_storage.delete(old_image_path)
+
+        # Update instance with validated data
+        return super().update(instance, validated_data)
        
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
@@ -128,7 +139,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class OTPSerializer(serializers.ModelSerializer):
     class Meta:
         model = OTP
-        fields = ['id','otp','email']
+        fields = '__all__'
 
 # Serializer for OfflinePurchase model
 class OfflinePurchaseSerializer(serializers.ModelSerializer):
@@ -188,6 +199,7 @@ class TransactionCheckOutSerializer(serializers.ModelSerializer):
 #             Assessment.objects.create(module=module, **assessment_data)
 #         return module
 
+
 # Serializer for Task model with nested modules
 # class TaskSerializer(serializers.ModelSerializer):
 #     modules = ModuleSerializer(many=True, write_only=True)
@@ -239,6 +251,7 @@ class CourseUpdateSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Assessment
 #         fields = ['id', 'question', 'option1', 'option2', 'option3', 'option4', 'answer']
+
 
 # class CourseTaskModuleSerializer(serializers.ModelSerializer):
 #     tasks_count = serializers.SerializerMethodField()

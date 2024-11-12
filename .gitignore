@@ -6,4 +6,4 @@ __pycache__/
 *.pyc
 media/
 # Ignore log files
-iBot_lms/requests.log
+ibot_lms/iBot_lms/requests.log
