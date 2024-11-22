@@ -472,28 +472,47 @@ class tasktrack(APIView):
             modid = data.get('moduleid')
             tasks = data.get('task')
             image = data.get('image')
-            # Retrieve the Module instance for last_module
-            module_instance = get_object_or_404(Module, id=modid)
-
             # Check if UserCourseProgress already exists
             isfound = UserCourseProgress.objects.filter(user=userid, course=courseid).first()
-            if isfound:
-                # Update the existing instance
-                isfound.last_module = module_instance
-                isfound.task = tasks
-                isfound.updated_at = timezone.now()
-                isfound.save()
-                return Response({'data': 'progress updated'}, status=status.HTTP_200_OK)
-            else:
-                # If not found, create a new UserCourseProgress record
-                data = {'user': userid, 'course': courseid, 'last_module': module_instance.id, 'task': tasks,'course_images':image}
-                track = TasktrackSerializer(data=data)
-                if track.is_valid():
-                    track.save()
-                    return Response({'data': 'progress created'}, status=status.HTTP_201_CREATED)
+            if(modid):
+                # Retrieve the Module instance for last_module
+                module_instance = get_object_or_404(Module, id=modid)
+
+                if isfound:
+                    # Update the existing instance
+                    isfound.last_module = module_instance
+                    isfound.task = tasks
+                    isfound.updated_at = timezone.now()
+                    isfound.save()
+                    return Response({'data': 'progress updated'}, status=status.HTTP_200_OK)
                 else:
-                    print(track.errors)
-                    return Response(track.errors, status=status.HTTP_400_BAD_REQUEST)
+                    # If not found, create a new UserCourseProgress record
+                    data = {'user': userid, 'course': courseid, 'last_module': module_instance.id, 'task': tasks,'course_images':image}
+                    track = TasktrackSerializer(data=data)
+                    if track.is_valid():
+                        track.save()
+                        return Response({'data': 'progress created'}, status=status.HTTP_201_CREATED)
+                    else:
+                        print(track.errors)
+                        return Response(track.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                if isfound:
+                     # Update the existing instance
+                    isfound.last_module = None
+                    isfound.task = tasks
+                    isfound.updated_at = timezone.now()
+                    isfound.save()
+                    return Response({'data': 'progress updated'}, status=status.HTTP_200_OK)
+                else:
+                    # If not found, create a new UserCourseProgress record
+                    data = {'user': userid, 'course': courseid, 'last_module': None, 'task': tasks,'course_images':image}
+                    track = TasktrackSerializer(data=data)
+                    if track.is_valid():
+                        track.save()
+                        return Response({'data': 'progress created'}, status=status.HTTP_201_CREATED)
+                    else:
+                        print(track.errors)
+                        return Response(track.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             print(f"Error: {str(e)}")
@@ -507,56 +526,63 @@ class tasktrack(APIView):
             if progress:
                 serialized_progress = TasktrackSerializer(progress)
                 last_mod_id = serialized_progress.data.get('last_module')
-                track = serialized_progress.data.get('task')
-                module = Module.objects.get(id=last_mod_id)
-                type_intro = os.path.splitext(module.intro.name)[1] if module.intro else None
-                type_content = os.path.splitext(module.content.name)[1] if module.content else None
-                type_activity = os.path.splitext(module.activity.name)[1] if module.activity else None
+                if last_mod_id:
 
-                # Ensure we return URLs for all file types, including PPT files
-                intro_urls = module.intro.url if module.intro else None
-                content_urls = module.content.url if module.content else None
-                activity_urls = module.activity.url if module.activity else None
+                    track = serialized_progress.data.get('task')
+                    module = Module.objects.get(id=last_mod_id)
+                    type_intro = os.path.splitext(module.intro.name)[1] if module.intro else None
+                    type_content = os.path.splitext(module.content.name)[1] if module.content else None
+                    type_activity = os.path.splitext(module.activity.name)[1] if module.activity else None
 
-                if type_intro in ['.ppt', '.pptx']:
-                    intro_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.intro}"
-                else:
+                    # Ensure we return URLs for all file types, including PPT files
                     intro_urls = module.intro.url if module.intro else None
-
-                if type_content in ['.ppt', '.pptx']:
-                    content_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.content}"
-                else:
                     content_urls = module.content.url if module.content else None
-
-                if type_activity in ['.ppt', '.pptx']:
-                    activity_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.activity}"
-                else:
                     activity_urls = module.activity.url if module.activity else None
 
-                module_data = {
-                    'id': str(module.id),
-                    'module_name': module.module_name,
-                    'module_description': module.module_description,
-                    'intro': intro_urls,
-                    'type_intro': type_intro,
-                    'content': content_urls,
-                    'type_content': type_content,
-                    'activity': activity_urls,
-                    'type_activity': type_activity,
-                    'task': track,
-                    'assessments': []
-                }
+                    if type_intro in ['.ppt', '.pptx']:
+                        intro_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.intro}"
+                    else:
+                        intro_urls = module.intro.url if module.intro else None
 
-                assessments = Assessment.objects.filter(module=module.id)
-                for assessment in assessments:
-                    assessment_data = {
-                        'id': str(assessment.id),
-                        'question': assessment.question,
-                        'options': [assessment.option1, assessment.option2, assessment.option3, assessment.option4],
+                    if type_content in ['.ppt', '.pptx']:
+                        content_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.content}"
+                    else:
+                        content_urls = module.content.url if module.content else None
+
+                    if type_activity in ['.ppt', '.pptx']:
+                        activity_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.activity}"
+                    else:
+                        activity_urls = module.activity.url if module.activity else None
+
+                    module_data = {
+                        'id': str(module.id),
+                        'module_name': module.module_name,
+                        'module_description': module.module_description,
+                        'intro': intro_urls,
+                        'type_intro': type_intro,
+                        'content': content_urls,
+                        'type_content': type_content,
+                        'activity': activity_urls,
+                        'type_activity': type_activity,
+                        'task': track,
+                        'assessments': []
                     }
-                    module_data['assessments'].append(assessment_data)
 
-                return Response({'data': module_data}, status=status.HTTP_200_OK)
+                    assessments = Assessment.objects.filter(module=module.id)
+                    for assessment in assessments:
+                        assessment_data = {
+                            'id': str(assessment.id),
+                            'question': assessment.question,
+                            'options': [assessment.option1, assessment.option2, assessment.option3, assessment.option4],
+                        }
+                        module_data['assessments'].append(assessment_data)
+
+                    return Response({'data': module_data}, status=status.HTTP_200_OK)
+                
+                else:
+                    serialized_progress = TasktrackSerializer(progress)
+                    track = serialized_progress.data.get('task')
+                    return Response({'data': track}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             print(f"Error: {str(e)}")
