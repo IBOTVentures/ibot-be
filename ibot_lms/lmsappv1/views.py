@@ -5,14 +5,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Sum, Avg
 from .filters import CourseFilter
-from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP
-from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionOrderSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CertificationQuestionSerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer
+from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore
+from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionOrderSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CertificationQuestionSerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser
 from .methods import generate_otp, purchasedUser_encode_token,visitor_encode_token,courseSubscribedUser_encode_token, admin_encode_token, encrypt_password
 from .authentication import PurchasedUserTokenAuthentication, CourseSubscribedUserTokenAuthentication, AdminTokenAuthentication, VisitorTokenAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from cloudinary.uploader import upload
 import cloudinary.uploader
+from django.utils import timezone
 from django.core.files.storage import default_storage  # To save files locally
 import os
 import logging
@@ -442,6 +443,151 @@ class FetchCoursePreview(APIView):
             return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class canviewmodule(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            userid = request.query_params.get('userid')
+            modid = request.query_params.get('moduleid')
+            assessscore = UserAssessmentScore.objects.filter(user=userid,module=modid).first()
+            if assessscore:
+                per = (assessscore.obtained_marks/assessscore.total_marks)*100
+                if(per<65):
+                    return Response({'data': 'unallow'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+                else:
+                    return Response({'data': 'allow'}, status=status.HTTP_200_OK)
+            else:
+                print(assessscore)
+                return Response({'data': 'unallow'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class tasktrack(APIView):
+    def post(self,request):
+        try:
+            data = request.data
+            userid = data.get('userid')
+            courseid = data.get('courseIds')
+            modid = data.get('moduleid')
+            tasks = data.get('task')
+            image = data.get('image')
+            # Retrieve the Module instance for last_module
+            module_instance = get_object_or_404(Module, id=modid)
+
+            # Check if UserCourseProgress already exists
+            isfound = UserCourseProgress.objects.filter(user=userid, course=courseid).first()
+            if isfound:
+                # Update the existing instance
+                isfound.last_module = module_instance
+                isfound.task = tasks
+                isfound.updated_at = timezone.now()
+                isfound.save()
+                return Response({'data': 'progress updated'}, status=status.HTTP_200_OK)
+            else:
+                # If not found, create a new UserCourseProgress record
+                data = {'user': userid, 'course': courseid, 'last_module': module_instance.id, 'task': tasks,'course_images':image}
+                track = TasktrackSerializer(data=data)
+                if track.is_valid():
+                    track.save()
+                    return Response({'data': 'progress created'}, status=status.HTTP_201_CREATED)
+                else:
+                    print(track.errors)
+                    return Response(track.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def get(self, request, *args, **kwargs):
+        try:
+            user_id = request.query_params.get('userid')
+            course_id = request.query_params.get('courseid')
+            progress = UserCourseProgress.objects.filter(user=user_id, course=course_id).first()
+            if progress:
+                serialized_progress = TasktrackSerializer(progress)
+                last_mod_id = serialized_progress.data.get('last_module')
+                track = serialized_progress.data.get('task')
+                module = Module.objects.get(id=last_mod_id)
+                type_intro = os.path.splitext(module.intro.name)[1] if module.intro else None
+                type_content = os.path.splitext(module.content.name)[1] if module.content else None
+                type_activity = os.path.splitext(module.activity.name)[1] if module.activity else None
+
+                # Ensure we return URLs for all file types, including PPT files
+                intro_urls = module.intro.url if module.intro else None
+                content_urls = module.content.url if module.content else None
+                activity_urls = module.activity.url if module.activity else None
+
+                if type_intro in ['.ppt', '.pptx']:
+                    intro_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.intro}"
+                else:
+                    intro_urls = module.intro.url if module.intro else None
+
+                if type_content in ['.ppt', '.pptx']:
+                    content_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.content}"
+                else:
+                    content_urls = module.content.url if module.content else None
+
+                if type_activity in ['.ppt', '.pptx']:
+                    activity_urls = f"https://view.officeapps.live.com/op/embed.aspx?src={module.activity}"
+                else:
+                    activity_urls = module.activity.url if module.activity else None
+
+                module_data = {
+                    'id': str(module.id),
+                    'module_name': module.module_name,
+                    'module_description': module.module_description,
+                    'intro': intro_urls,
+                    'type_intro': type_intro,
+                    'content': content_urls,
+                    'type_content': type_content,
+                    'activity': activity_urls,
+                    'type_activity': type_activity,
+                    'task': track,
+                    'assessments': []
+                }
+
+                assessments = Assessment.objects.filter(module=module.id)
+                for assessment in assessments:
+                    assessment_data = {
+                        'id': str(assessment.id),
+                        'question': assessment.question,
+                        'options': [assessment.option1, assessment.option2, assessment.option3, assessment.option4],
+                    }
+                    module_data['assessments'].append(assessment_data)
+
+                return Response({'data': module_data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class pickup(APIView):
+    def get(self,request):
+        try:
+            user_id = request.query_params.get('user')
+            print(user_id)
+            if not user_id:
+                return Response({'error': 'User ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get the latest progress for the user
+            # progress = UserCourseProgress.objects.filter(user=user_id).first()
+            progress = UserCourseProgress.objects.filter(user=user_id).order_by('-updated_at').first()
+            if progress:
+                serialized_progress = TasktrackSerializer(progress)
+                data = {
+                    'course': serialized_progress.data.get('course'),
+                    'user': serialized_progress.data.get('user'),
+                    'module':serialized_progress.data.get('last_module'),
+                    'image': serialized_progress.data.get('course_images')
+                }
+                print(data)
+                return Response({'data': data}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'No progress found for this user'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class courseconfirm(APIView):
     def post(self,request):
@@ -471,6 +617,19 @@ class courselist(APIView):
             return Response({'data': serializer.data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class CourseListView(APIView):
+    def get(self, request, *args, **kwargs):
+        print("Query Parameters:", request.query_params)
+        queryset = Course.objects.all()
+        filterset = CourseFilter(request.query_params, queryset=queryset)
+
+        if filterset.is_valid():
+            queryset = filterset.qs
+            print("Filtered Queryset:", queryset)
+
+        serializer = CourseFilterSerializer(queryset, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
         
 class addproduct(APIView):
     def post(self, request):
@@ -561,23 +720,87 @@ class checkanswers(APIView):
         try:
             modid = request.data.get('moduleId')
             answers = request.data.get('answers')
+            userid = request.data.get('userid')
+            count = 0
+            total = 0
             results = [] 
-
             for task_id, selected_option in answers.items():  
                 assessment = Assessment.objects.filter(id=task_id).first()
+                total = total + 1
                 if assessment:
                     if assessment.answer == selected_option:
                         results.append({task_id: 'correct'})
+                        count = count + 1
                     else:
                         results.append({task_id: 'wrong'})
                 else:
                     results.append({task_id: 'not found'})
-
-            return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
+            per = (count/total)*100
+            results.append({'percentage':per})
+            user = UserAssessmentScore.objects.filter(user = userid,module = modid).first()
+            if user:
+                user.obtained_marks = count
+                user.save()
+                print(results)
+                return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
+            else:
+                data = {'module':modid,'total_marks':total,'obtained_marks':count,'user':userid}
+                serialiser = UserAssessmentSerialiser(data = data)
+                if serialiser.is_valid():
+                    serialiser.save()
+                    print(results)
+                    return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'error': serialiser.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class checkcertifyanswer(APIView):
+    def post(self,request):
+        try:
+            courseid = request.data.get('courseid')
+            answers = request.data.get('answers')
+            userid = request.data.get('userid')
+            certification = Certification.objects.filter(course=courseid).first()
+            count = 0
+            total = 0
+            results = [] 
+            for task_id, selected_option in answers.items():  
+                certifydata = CertificationQuestion.objects.filter(id=task_id).first()
+                print(certifydata)
+                total = total + 1
+                if certifydata:
+                    if certifydata.answer == selected_option:
+                        results.append({task_id: 'correct'})
+                        count = count + 1
+                    else:
+                        results.append({task_id: 'wrong'})
+                else:
+                    results.append({task_id: 'not found'})
+            per = (count/total)*100
+            results.append({'percentage':per})
+            usercertify = UserCertificationScore.objects.filter(user = userid,certify = certification.id).first()
+            if usercertify:
+                usercertify.obtained_marks = count
+                usercertify.save()
+                print(results)
+                return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
+            else:
+                data = {'certify':certification.id,'total_marks':total,'obtained_marks':count,'user':userid}
+                serialiser = UserCertificationSerialiser(data = data)
+                if serialiser.is_valid():
+                    serialiser.save()
+                    print(results)
+                    return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'error': serialiser.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 
 class updatedetails(APIView):
     def post(self, request):
@@ -763,7 +986,6 @@ class deleteCourse(APIView):
             print(f"Error during deletion: {str(e)}")
             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class CertificationAPIView(APIView):
     def get(self, request, *args, **kwargs):
         course_id = request.query_params.get('course_id', None)
@@ -778,7 +1000,6 @@ class CertificationAPIView(APIView):
     
         course_id = request.data.get('course_id')
         certification_data = request.data.get('certification')
-        
         if not course_id:
             return Response({"error": "Course ID is required."}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -875,6 +1096,9 @@ class CheckoutAPIView(APIView):
             logger.error(e)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
  
+
+
+
 
 
 
@@ -1095,76 +1319,76 @@ class CourseUpdateAPIView(APIView):
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class ModuleUpdateAPIView(APIView):        
-    def put(self, request, pk):
-        try:
-            module = Module.objects.get(pk=pk)
-            serializer = ModuleUpdateSerializer(module, data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        except Module.DoesNotExist:
-            return Response({"error": "Module not found."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# class ModuleUpdateAPIView(APIView):        
+#     def put(self, request, pk):
+#         try:
+#             module = Module.objects.get(pk=pk)
+#             serializer = ModuleUpdateSerializer(module, data=request.data)
+#             if serializer.is_valid():
+#                 serializer.save()
+#                 return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+#             return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+#         except Module.DoesNotExist:
+#             return Response({"error": "Module not found."}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-class AssessmentAPIView(APIView):
-    def get(self, request):
-        try:
-            module_id = request.query_params.get('module_id', None)
-            if module_id:
-                assessments = Assessment.objects.filter(module_id=module_id)
-                if assessments.exists():
-                    serializer = AssessmentListSerializer(assessments, many=True)
-                    return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-                return Response({"error": "No assessments found for the given module."}, status=status.HTTP_404_NOT_FOUND)
-        except Assessment.DoesNotExist:
-            return Response({"error": "Assessment not found."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# class AssessmentAPIView(APIView):
+#     def get(self, request):
+#         try:
+#             module_id = request.query_params.get('module_id', None)
+#             if module_id:
+#                 assessments = Assessment.objects.filter(module_id=module_id)
+#                 if assessments.exists():
+#                     serializer = AssessmentListSerializer(assessments, many=True)
+#                     return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+#                 return Response({"error": "No assessments found for the given module."}, status=status.HTTP_404_NOT_FOUND)
+#         except Assessment.DoesNotExist:
+#             return Response({"error": "Assessment not found."}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-    def post(self, request):
-        module_id = request.data.get('module_id')
+#     def post(self, request):
+#         module_id = request.data.get('module_id')
         
-        if module_id is None:
-            return Response({"error": "module_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+#         if module_id is None:
+#             return Response({"error": "module_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            module = Module.objects.get(id=module_id)
-        except Module.DoesNotExist:
-            return Response({"error": "Module not found"}, status=status.HTTP_404_NOT_FOUND)
+#         try:
+#             module = Module.objects.get(id=module_id)
+#         except Module.DoesNotExist:
+#             return Response({"error": "Module not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        data = {
-            'question': request.data.get('question'),
-            'option1': request.data.get('option1'),
-            'option2': request.data.get('option2'),
-            'option3': request.data.get('option3'),
-            'option4': request.data.get('option4'),
-            'answer': request.data.get('answer'),
-            'module': module.id
-        }
+#         data = {
+#             'question': request.data.get('question'),
+#             'option1': request.data.get('option1'),
+#             'option2': request.data.get('option2'),
+#             'option3': request.data.get('option3'),
+#             'option4': request.data.get('option4'),
+#             'answer': request.data.get('answer'),
+#             'module': module.id
+#         }
 
-        serializer = AssessmentSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save(module=module)  # Save the assessment with the linked module
-            return Response({"data": serializer.data}, status=status.HTTP_201_CREATED)
-        else:
-            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+#         serializer = AssessmentSerializer(data=data)
+#         if serializer.is_valid():
+#             serializer.save(module=module)  # Save the assessment with the linked module
+#             return Response({"data": serializer.data}, status=status.HTTP_201_CREATED)
+#         else:
+#             return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
-class AssessmentUpdateAPIView(APIView):
-    def put(self, request, pk):
-        try:
-            assessment = Assessment.objects.get(pk=pk)
-            serializer = AssessmentSerializer(assessment, data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        except Assessment.DoesNotExist:
-            return Response({"error": "Assessment not found."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# class AssessmentUpdateAPIView(APIView):
+#     def put(self, request, pk):
+#         try:
+#             assessment = Assessment.objects.get(pk=pk)
+#             serializer = AssessmentSerializer(assessment, data=request.data)
+#             if serializer.is_valid():
+#                 serializer.save()
+#                 return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+#             return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+#         except Assessment.DoesNotExist:
+#             return Response({"error": "Assessment not found."}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     
 # class UserCourseProgressView(APIView):
 #     def get(self, request):
@@ -1283,13 +1507,5 @@ class AssessmentUpdateAPIView(APIView):
 #         serializer = CourseTaskModuleSerializer(course)
 #         return Response({"data": serializer.data}, status=status.HTTP_200_OK)
     
-class CourseListView(APIView):
-    def get(self, request, *args, **kwargs):
-        queryset = Course.objects.all()
-        filterset = CourseFilter(request.GET, queryset=queryset)
-        
-        if filterset.is_valid():
-            queryset = filterset.qs  # Get the filtered queryset
-        serializer = CourseFilterSerializer(queryset, many=True)
-        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
     

@@ -12,19 +12,22 @@ class User(models.Model):
         ('visitor', 'visitor'),
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=100, unique=True)
+    username = models.CharField(max_length=100, unique=True,null=True, blank=True)
     password = models.CharField(max_length=100)
+    age = models.CharField(max_length=3,null=True, blank=True)
+    profile = models.ImageField(upload_to='images/profile/',null=True, blank=True)
     role = models.CharField(max_length=50, choices=Role, default='visitor')
     subscription = models.BooleanField(default=False)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    mobile = models.CharField(max_length=15)
-    address = models.TextField()
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    country = models.CharField(max_length=100)
-    pincode = models.CharField(max_length=10)
+    first_name = models.CharField(max_length=100,null=True, blank=True)
+    middle_name = models.CharField(max_length=100,null=True, blank=True)
+    last_name = models.CharField(max_length=100,null=True, blank=True)
+    mobile = models.CharField(max_length=15,null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    city = models.CharField(max_length=100,null=True, blank=True)
+    state = models.CharField(max_length=100,null=True, blank=True)
+    country = models.CharField(max_length=100,null=True, blank=True)
+    pincode = models.CharField(max_length=10,null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
 
@@ -68,6 +71,7 @@ class Course(models.Model):
     age_category = models.CharField(max_length=50,choices=age_choices)
     level = models.CharField(max_length=100, choices=level_choices)
     isconfirmed = models.BooleanField(default=False)
+    rating = models.DecimalField(max_digits=10, decimal_places=1, default=0)
     module_count = models.IntegerField()
     course_cover_image = models.ImageField(upload_to='images/')
     product_model = models.CharField(max_length=100, choices=product_choice, default='U10 pro')
@@ -198,26 +202,52 @@ class OfflinePurchase(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(default=timezone.now)
 
-# class UserCourseProgress(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='course_progress')
-#     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-#     last_module = models.ForeignKey(Module, on_delete=models.SET_NULL, null=True, blank=True)
-#     last_task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True)
-#     is_completed = models.BooleanField(default=False)
-#     created_at = models.DateTimeField(default=timezone.now)
-#     updated_at = models.DateTimeField(default=timezone.now)
+class UserCourseProgress(models.Model):
+    task_type = (
+        ('overview', 'overview'),
+        ('main', 'main'),
+        ('activity', 'activity'),
+        ('assessment', 'assessment'),
+    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='course_progress')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    last_module = models.ForeignKey(Module, on_delete=models.SET_NULL, null=True, blank=True)
+    course_images = models.CharField(null=True, blank=True)
+    task = models.CharField(max_length=100, choices=task_type)
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
-# class UserAssessmentScore(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assessment_scores')
-#     module = models.ForeignKey(Module, on_delete=models.CASCADE)
-#     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE)
-#     score = models.FloatField(default=0)
-#     total_marks = models.IntegerField(default=0)
-#     obtained_marks = models.IntegerField(default=0)
-#     created_at = models.DateTimeField(default=timezone.now)
-#     updated_at = models.DateTimeField(default=timezone.now)
+class UserAssessmentScore(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assessment_scores')
+    module = models.ForeignKey(Module, on_delete=models.CASCADE)
+    total_marks = models.IntegerField(default=0)
+    obtained_marks = models.IntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+class UserCertificationScore(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='certification_score')
+    certify = models.ForeignKey(Certification, on_delete=models.CASCADE)
+    total_marks = models.IntegerField(default=0)
+    obtained_marks = models.IntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+    
+
+
+
+
+
+
+
+
+
+
+
     
 # class Task(models.Model):
 #     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

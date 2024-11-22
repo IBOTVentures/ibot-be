@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, ProductKit
+from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, ProductKit, UserCourseProgress,UserAssessmentScore, UserCertificationScore
 from django.core.files.storage import default_storage
 
 # Serializer for User model
@@ -28,6 +28,11 @@ class CourseSerializer(serializers.ModelSerializer):
         model= Course
         fields = '__all__'
 
+class TasktrackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserCourseProgress
+        fields = '__all__'
+
 # Serializer for Module model
 class ModuleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,11 +45,21 @@ class AssessmentSerializer(serializers.ModelSerializer):
         model= Assessment
         fields = '__all__'
 
+class UserAssessmentSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model= UserAssessmentScore
+        fields = '__all__'
+
+class UserCertificationSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model= UserCertificationScore
+        fields = '__all__'
+
 # Serializer for CertificationQuestion model
 class CertificationQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CertificationQuestion
-        fields = ['question', 'option1', 'option2', 'option3', 'option4', 'answer']
+        fields = ['question', 'option1', 'option2', 'option3', 'option4', 'answer','id']
 
 class CertificationsSerializer(serializers.ModelSerializer):
     questions = CertificationQuestionSerializer(many=True)
@@ -105,15 +120,11 @@ class CertificationSerializer(serializers.ModelSerializer):
             CertificationQuestion.objects.create(certification=certification, **question_data)
         return certification
     
-# class UserCourseProgressSerializer(serializers.ModelSerializer):
-#     course_name = serializers.CharField(source='course.course_name', read_only=True)
-#     last_module_name = serializers.CharField(source='last_module.module_name', read_only=True, allow_null=True)
-#     last_task_name = serializers.CharField(source='last_task.task_name', read_only=True, allow_null=True)
-
-#     class Meta:
-#         model = UserCourseProgress
-#         fields = ['id', 'user', 'course', 'course_name', 'last_module', 'last_module_name', 'last_task', 'last_task_name', 'is_completed', 'created_at', 'updated_at']
-#         read_only_fields = ['created_at', 'updated_at']
+class UserCourseProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserCourseProgress
+        fields = ['id', 'user', 'course', 'course_name', 'last_module', 'last_module_name', 'last_task', 'last_task_name', 'is_completed', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
     
 class StatisticsSerializer(serializers.Serializer):
     total_users = serializers.IntegerField()
