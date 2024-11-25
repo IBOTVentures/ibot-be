@@ -766,6 +766,7 @@ class checkanswers(APIView):
             user = UserAssessmentScore.objects.filter(user = userid,module = modid).first()
             if user:
                 user.obtained_marks = count
+                user.total_marks = total
                 user.save()
                 print(results)
                 return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
@@ -810,6 +811,7 @@ class checkcertifyanswer(APIView):
             usercertify = UserCertificationScore.objects.filter(user = userid,certify = certification.id).first()
             if usercertify:
                 usercertify.obtained_marks = count
+                usercertify.total_marks = total
                 usercertify.save()
                 print(results)
                 return Response({'data': results, 'message': 'success'}, status=status.HTTP_200_OK)
