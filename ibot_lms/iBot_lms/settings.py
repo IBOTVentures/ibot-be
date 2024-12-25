@@ -111,7 +111,7 @@ WSGI_APPLICATION = 'iBot_lms.wsgi.application'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://gm2gtb4x-3000.inc1.devtunnels.ms",
+    "https://p46sp2n4-3000.inc1.devtunnels.ms",
 ]
 CORS_ALLOWED_METHODS = [
     "DELETE",

@@ -1,9 +1,10 @@
 from django.urls import path
-from .views import  UploadCourse, SendOTP, Forget, UpdatePassword,UploadModule, AssessmentQuestion,FetchCoursePreview,courseconfirm,courselist, addproduct,getdetails,updatedetails,CertificationAPIView,TaskStatusAPIView, AddAPIView, CourseListView,StatisticsAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, DeleteModuleView, deleteQuestion, deleteCourse, tasktrack, canviewmodule, pickup, checkcertifyanswer
+from .views import  UploadCourse, SendOTP, Forget, UpdatePassword,UploadModule, AssessmentQuestion,FetchCoursePreview,courseconfirm,courselist, addproduct,getdetails,updatedetails,CertificationAPIView, CourseListView,StatisticsAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, DeleteModuleView, deleteQuestion, deleteCourse, tasktrack, canviewmodule, pickup, checkcertifyanswer, deletecertifyques,Userscheck,Signup,UserReviews, UserCourses,delaccount,categories, ProductView,CategoryAPIView
 
 urlpatterns = [
 
     path('signin/', SignInAPIView.as_view(), name='signin'),
+    path('signup/',Signup.as_view(),name='signup'),
     path('sendotp/',SendOTP.as_view(),name='sendotp'),
     path('forget/',Forget.as_view(),name='forget'),
     path('updatepassword/',UpdatePassword.as_view(),name='updatepassword'),
@@ -13,12 +14,15 @@ urlpatterns = [
     path('uploadcourse/',UploadCourse.as_view(),name='uploadcourse'),
     path('uploadmodule/',UploadModule.as_view(),name='uploadmodule'),
     path('assessmentquestion/',AssessmentQuestion.as_view(),name='assessmentquestion'),
+    path('deleteaccount/',delaccount.as_view(),name='deleteaccount'),
     path('deletemodule/<uuid:id>/', DeleteModuleView.as_view(), name='deletemodule'),
     path('deleteques/<uuid:id>/',deleteQuestion.as_view(),name='deleteques'),
     path('deletecourse/<uuid:id>/',deleteCourse.as_view(),name='deletecourse'),
     path('confirm/',courseconfirm.as_view(),name='confirm'),
     path('addproduct/',addproduct.as_view(),name='addproduct'),
+    path('categories/', CategoryAPIView.as_view()),  # For GET and POST
     path('offlinepurchase/', OfflinePurchaseUserAPIView.as_view(), name='offlinepurchase'),
+    path('deletecertifyques/<uuid:id>/<uuid:courseid>/',deletecertifyques.as_view(),name='deletecertifyques'),
     path('statistics/', StatisticsAPIView.as_view(), name='statistics'),
 
     path('canaccesscourse/',canaccesscourse.as_view(),name='canaccesscourse'),
@@ -30,6 +34,11 @@ urlpatterns = [
     path('submitanswers/',checkanswers.as_view(),name='submitanswers'),
     path('submitcertificationanswers/',checkcertifyanswer.as_view(),name='submitcertificationanswer'),
     path('courses/', CourseListView.as_view(), name='course-list'),
+    path('productfilter/',ProductView.as_view(),name='productfilter'),
+    path('isallowed/',Userscheck.as_view(),name='isallowed'),
+    path('reviews/',UserReviews.as_view(),name='reviews'),
+    path('userstartedcourses/',UserCourses.as_view(),name='usercourses'),
+    path('getcategory/',categories.as_view(),name='getcategory'),
     
     path('order/', OrderAPIView.as_view(), name='order'),    
     path('orderStatus/', CheckoutAPIView.as_view(), name='checkout'),
@@ -42,21 +51,3 @@ urlpatterns = [
 
 
 
-# urlpatterns = [
-    
-#     path('file/', FileRecieverAPIView.as_view(), name='file'),
-#     path('courses/', CourseAPIView.as_view(), name='course-create'),
-#     path('courseslist/<uuid:pk>/', CourseUpdateAPIView.as_view(), name='course-list'),
-#     path('tasks/', TaskAPIView.as_view(), name='task-list'),
-#     path('taskslist/<uuid:pk>/', TaskUpdateAPIView.as_view(), name='task-list'),
-#     path('modules/', ModuleAPIView.as_view(), name='module-list'),
-#     path('moduleslist/<uuid:pk>/', ModuleUpdateAPIView.as_view(), name='module-list'),
-#     path('assessments/', AssessmentAPIView.as_view(), name='assessment-list'),
-#     path('assessmentslist/<uuid:pk>/', AssessmentUpdateAPIView.as_view(), name='assessment-list'),
-
-#     path('add/', AddAPIView.as_view(), name='add'),
-#     path('taskstatus/', TaskStatusAPIView.as_view(), name='task-status'),
-#  path('coursetaskmodulecount/', CourseTaskModuleCountAPIView.as_view(), name='course-task-module-count'),
-# path('usercourseprogressupdate/<uuid:pk>/', UserCourseProgressUpdateView.as_view(), name='user-course-progress-update'),
-# path('usercourseprogress/', UserCourseProgressView.as_view(), name='user-course-progress'),
-# ]

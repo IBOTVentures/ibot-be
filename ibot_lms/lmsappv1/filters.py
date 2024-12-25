@@ -1,16 +1,20 @@
 # filters.py
 
 # import django_filters
-from .models import Course
+from .models import Course,Product
 from django_filters import rest_framework as filters
 
 class CourseFilter(filters.FilterSet):
-    age_category = filters.CharFilter(field_name='age_category', lookup_expr='iexact')
-    level = filters.CharFilter(field_name="level", lookup_expr='icontains')
-    rating = filters.NumberFilter(field_name="rating", lookup_expr='gte')
+    category = filters.CharFilter(field_name='product__category__category_name', lookup_expr='iexact')
+    rating = filters.NumberFilter(field_name='rating', lookup_expr='gte')
 
     class Meta:
         model = Course
-        fields = ['age_category', 'level', 'rating']
+        fields = ['category', 'rating']
 
+class ProductFilter(filters.FilterSet):
+    category = filters.CharFilter(field_name='category__category_name', lookup_expr='iexact')
 
+    class Meta:
+        model = Product
+        fields = ['category']
