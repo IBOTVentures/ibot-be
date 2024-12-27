@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import  UploadCourse, SendOTP, Forget, UpdatePassword,UploadModule, AssessmentQuestion,FetchCoursePreview,courseconfirm,courselist, addproduct,getdetails,updatedetails,CertificationAPIView, CourseListView,StatisticsAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, DeleteModuleView, deleteQuestion, deleteCourse, tasktrack, canviewmodule, pickup, checkcertifyanswer, deletecertifyques,Userscheck,Signup,UserReviews, UserCourses,delaccount,categories, ProductView,CategoryAPIView
+from .views import  UploadCourse, SendOTP, Forget, UpdatePassword,UploadModule, AssessmentQuestion,FetchCoursePreview,courseconfirm,courselist, addproduct,getdetails,updatedetails,CertificationAPIView, CourseListView,StatisticsAPIView, CertificationUpdateAPIView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, DeleteModuleView, deleteQuestion, deleteCourse, tasktrack, canviewmodule, pickup, checkcertifyanswer, deletecertifyques,Userscheck,Signup,UserReviews, UserCourses,delaccount,categories, ProductView,CategoryAPIView, Eachproduct, ProductReviews
 
 urlpatterns = [
 
@@ -35,10 +35,12 @@ urlpatterns = [
     path('submitcertificationanswers/',checkcertifyanswer.as_view(),name='submitcertificationanswer'),
     path('courses/', CourseListView.as_view(), name='course-list'),
     path('productfilter/',ProductView.as_view(),name='productfilter'),
+    path('productreviews/',ProductReviews.as_view(),name='productreviews'),
+    path('eachproduct/', Eachproduct.as_view(),name='eachproduct'),
     path('isallowed/',Userscheck.as_view(),name='isallowed'),
     path('reviews/',UserReviews.as_view(),name='reviews'),
     path('userstartedcourses/',UserCourses.as_view(),name='usercourses'),
-    path('getcategory/',categories.as_view(),name='getcategory'),
+    path('listcategory/',categories.as_view(),name='listcategory'),
     
     path('order/', OrderAPIView.as_view(), name='order'),    
     path('orderStatus/', CheckoutAPIView.as_view(), name='checkout'),

@@ -56,6 +56,7 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     product_name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
+    rating = models.IntegerField(default=0)
     product_image = models.ImageField(upload_to='product/', null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -212,6 +213,15 @@ class UserReview(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='course_rating')
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    rating = models.IntegerField(default=1)
+    review = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+class ProductReview(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_rating')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     rating = models.IntegerField(default=1)
     review = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)

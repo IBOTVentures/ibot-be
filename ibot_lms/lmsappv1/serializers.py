@@ -1,11 +1,16 @@
 from rest_framework import serializers
-from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category
+from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category, ProductReview
 from django.core.files.storage import default_storage
 
 # Serializer for User model
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
+        fields = '__all__'
+
+class Productreviewserialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ProductReview
         fields = '__all__'
 
 class UserReviewSerializer(serializers.ModelSerializer):

@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Sum, Avg
 from .filters import CourseFilter,ProductFilter
-from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category
-from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionOrderSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser
+from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category, ProductReview
+from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionOrderSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser, Productreviewserialiser
 from .methods import generate_otp, purchasedUser_encode_token,visitor_encode_token,courseSubscribedUser_encode_token, admin_encode_token, encrypt_password
 from .authentication import PurchasedUserTokenAuthentication, CourseSubscribedUserTokenAuthentication, AdminTokenAuthentication, VisitorTokenAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -800,9 +800,23 @@ class ProductView(APIView):
                 each['category'] = category.category_name  
                 enriched_data.append(each) 
 
-        print(enriched_data)
         return Response({'data': enriched_data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
         # return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+class Eachproduct(APIView):
+    def get(self, request):
+        id = request.query_params.get('productid')
+        product = Product.objects.filter(id=id).first()
+        serializer = ProductSerializer(product)
+        data = serializer.data
+        category = Category.objects.filter(id=data['category']).first()
+        cat_serializer = CategorySerializer(category)  # Serialize the category
+        data['category'] = cat_serializer.data  # Assign serialized category data to the response
+        print(data)
+        return Response({'data': data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
+
         
 class addproduct(APIView):
     # def post(self, request):
@@ -1443,49 +1457,6 @@ class UserReviews(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
-# class UserCourses(APIView):
-#     def get(self,request):
-#         try:
-#             user_id = request.query_params.get('id')
-#             course_data = UserCourseProgress.objects.filter(user=user_id)
-#             completed = 0
-#             completed_module = 0
-#             ongoing_courses = []
-#             certification_data = UserCertificationScore.objects.filter(user=user_id)
-#             if(course_data):
-#                 courses_started = len(course_data)
-#                 for courses in course_data:
-#                     course = Course.objects.filter(id=courses.course)
-#                     image = courses.course_cover_image
-#                     course_name = courses.course_name
-#                     module = Module.objects.filter(course=courses.course)
-#                     total_module_count = len(module)
-#                     userassess = UserAssessmentScore.objects.filter(user=user_id,course=courses.course)
-#                     for module_completed in userassess:
-#                         per = (module_completed.obtained_marks/module_completed.total_marks)*100
-#                         if(per>=65):
-#                             completed_module = completed_module + 1
-                    
-#                     ongoing_courses.append({
-#                     'course_id': courses.course,  
-#                     'course_image': image,
-#                     'course_name': course_name,
-#                     'total_module': total_module_count,
-#                     'completed_module':completed_module
-#                     })
-                    
-#             if(certification_data):
-#                 for certify in certification_data:
-#                     per = (certify.obtained_marks/certify.total_marks)*100
-#                     if(per>=65):
-#                         completed = completed + 1
-#             datas = {'completed_course_count':completed,'ongoing_courses':ongoing_courses}
-#             return Response({'data': datas}, status=status.HTTP_200_OK)
-            
-#         except Exception as e:
-#             print("Exception:", str(e))  
-#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 class UserCourses(APIView):
 
     def get(self, request):
@@ -1553,22 +1524,6 @@ class UserCourses(APIView):
             print("Exception:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# class delaccount(APIView):
-#     def post(self, request):
-#         try:
-#             data = request.data
-#             id = data.get('id')
-#             reason = data.get('reason')
-#             serializer = delserialiser(data=reason)
-#             if serializer.is_valid():
-#                 serializer.save()
-#                 delacc = User.objects.get(id=id) 
-#                 delacc.delete()
-#                 return Response({"data": 'success','message': 'deleted successfully'}, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             print("Exception:", str(e))
-#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 class delaccount(APIView):
     def post(self, request):
         try:
@@ -1605,3 +1560,66 @@ class categories(APIView):
     
 
     
+class ProductReviews(APIView):
+    def post(self, request):
+        try:
+            data = request.data
+            
+            product = Product.objects.filter(id=data['product']).first()
+            if not product:
+                return Response({'error': 'Invalid product ID.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer = Productreviewserialiser(data=data)
+            if serializer.is_valid():
+                review_data = serializer.save()
+                review_data_list = ProductReview.objects.filter(product=review_data.product)
+                reviews_list = []
+                rating_sum = 0
+
+                for review in review_data_list:
+                    reviewer = User.objects.get(id=review.user.id)
+                    reviews_list.append({
+                        'username': reviewer.username,
+                        'rating': review.rating,
+                        'review': review.review,
+                        'createdAt': review.created_at
+                    })
+                    rating_sum += review.rating
+                
+                rating_avg = rating_sum / len(reviews_list)
+                product.rating = rating_avg
+                product.save()
+                
+                return Response({'data': reviews_list}, status=status.HTTP_200_OK)
+            else:
+                print("Serializer errors:", serializer.errors)  
+                return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        try:
+            product_id = request.query_params.get('id')
+        
+            if not product_id:
+                return Response({'error': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            review_data = ProductReview.objects.filter(product=product_id)
+            reviews_list = []
+
+            for review in review_data:
+                reviews_list.append({
+                    'username': review.user.username,  
+                    'rating': review.rating,
+                    'review': review.review,
+                    'createdAt': review.created_at
+                })
+
+            return Response({'data': reviews_list}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        

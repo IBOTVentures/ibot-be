@@ -14,7 +14,7 @@ class CourseFilter(filters.FilterSet):
 
 class ProductFilter(filters.FilterSet):
     category = filters.CharFilter(field_name='category__category_name', lookup_expr='iexact')
-
+    rating = filters.NumberFilter(field_name='rating', lookup_expr='gte')
     class Meta:
         model = Product
-        fields = ['category']
+        fields = ['category','rating']
