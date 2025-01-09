@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Sum, Avg
 from .filters import CourseFilter,ProductFilter
-from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category, ProductReview
-from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionOrderSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser, Productreviewserialiser
+from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category, ProductReview, SubscriptionMoney, CartData
+from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser, Productreviewserialiser,SignUpSerializer,subscribeserialiser, transactiondetails,cartserialiser,cartserial
 from .methods import generate_otp, purchasedUser_encode_token,visitor_encode_token,courseSubscribedUser_encode_token, admin_encode_token, encrypt_password
 from .authentication import PurchasedUserTokenAuthentication, CourseSubscribedUserTokenAuthentication, AdminTokenAuthentication, VisitorTokenAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -28,39 +28,52 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = '/media/'
 client = razorpay.Client(auth=("rzp_test_88QnZEgha1Ucxs", "yMHU4vBu66sKyux6DJ7OfKu8"))
 
-def delete_existing_file(file_field):
-    """
-    Helper function to delete an existing file.
-    Deletes from Cloudinary if the file is PowerPoint; from local storage if PDF.
-    """
-    if file_field:
-        if file_field.name.endswith(('.ppt', '.pptx')):
-            # Delete from Cloudinary
-            file_url = file_field.url
-            public_id = file_url.split('/')[-1]
-            print(f"Deleting Cloudinary file with public_id: {public_id}")
-            result = cloudinary.uploader.destroy(public_id, resource_type="raw")
-            print(f"Cloudinary deletion result: {result}")
-        elif file_field.name.endswith('.pdf'):
-            # Delete from local storage
-            if default_storage.exists(file_field.name):
-                default_storage.delete(file_field.name)
+# def delete_existing_file(file_field):
+#     """
+#     Helper function to delete an existing file.
+#     Deletes from Cloudinary if the file is PowerPoint; from local storage if PDF.
+#     """
+#     if file_field:
+#         if file_field.name.endswith(('.ppt', '.pptx')):
+#             # Delete from Cloudinary
+#             file_url = file_field.url
+#             public_id = file_url.split('/')[-1]
+#             print(f"Deleting Cloudinary file with public_id: {public_id}")
+#             result = cloudinary.uploader.destroy(public_id, resource_type="raw")
+#             print(f"Cloudinary deletion result: {result}")
+#         elif file_field.name.endswith('.pdf'):
+#             # Delete from local storage
+#             if default_storage.exists(file_field.name):
+#                 default_storage.delete(file_field.name)
 
-class Userscheck(APIView):
-    def get(self,request):
+# class Userscheck(APIView):
+#     def get(self,request):
+#         try:
+#             authorize = AdminTokenAuthentication()
+#             user, role = authorize.authenticate(request)
+#             if user and role == 'admin':
+#                 response_data = {'data': 'allowed'}
+#             else:
+#                 response_data = {'data': 'unallow'}
+#             return Response(response_data, status=status.HTTP_200_OK)
+        
+#         except Exception as e:
+#             print(f"Error: {str(e)}")
+#             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class activates(APIView):
+    def post(self,request):
         try:
-            authorize = AdminTokenAuthentication()
-            user, role = authorize.authenticate(request)
-            if user and role == 'admin':
-                response_data = {'data': 'allowed'}
-            else:
-                response_data = {'data': 'unallow'}
-            return Response(response_data, status=status.HTTP_200_OK)
-        
+            email = request.data.get('email')
+            user = User.objects.filter(email=email).first()
+            # user['inactive'] = False
+            user.inactive = False;
+            user.save()
+            return Response({'data': 'success'}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error: {str(e)}")
-            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            print(f"Error occurred: {str(e)}")
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class SendOTP(APIView):
     def post(self, request):
         try:
@@ -71,10 +84,12 @@ class SendOTP(APIView):
             type = request.data.get('type')
             otp_record = OTP.objects.filter(email=email).first()
             if type:
-                if User.objects.filter(email=email).exists():
+                if User.objects.filter(email=email,inactive=False).exists():
                     return Response({'data': 'email_found'}, status=status.HTTP_200_OK)
-                if User.objects.filter(username=username).exists():
+                elif User.objects.filter(username=username,inactive=False).exists():
                     return Response({'data': 'username_found'}, status=status.HTTP_200_OK)
+                elif User.objects.filter(email=email,inactive=True).exists():
+                    return Response({'data': 'inactive_user'},status=status.HTTP_200_OK)
             otp = generate_otp()
             if otp_record:
                     otp_record.otp = otp
@@ -99,7 +114,23 @@ class SendOTP(APIView):
         except Exception as e:
             print(f"Error occurred: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+    
+    def get(self, request):
+        try:
+            email = request.query_params.get('email')
+            code = request.query_params.get('code')
+            otp = OTP.objects.filter(email=email).first()
+            if otp is None:
+                return Response({'error': 'OTP not found'}, status=status.HTTP_404_NOT_FOUND)
+            serializer = OTPSerializer(otp)
+            if serializer.data.get('otp') == code:
+                otp.delete()  
+                return Response({'data': 'matched'}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({'data': 'unmatched'}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class Signup(APIView):
     def post(self, request):
         try:
@@ -140,7 +171,9 @@ class SignInAPIView(APIView):
             data = request.data
             email = data.get("email")
             password = data.get("password")
-            user = User.objects.get(email=email)
+            if User.objects.filter(email=email,inactive=True).exists():
+                return Response({'data': 'inactive_user'},status=status.HTTP_200_OK)
+            user = User.objects.get(email=email,inactive=False)
             encryptPassword = encrypt_password(password) 
             if OfflinePurchase.objects.filter(customer_email=email).exists() or OfflinePurchase.objects.filter(customer_contact_number=user.mobile).exists():
                     user.subscription = True
@@ -213,6 +246,7 @@ class Forget(APIView):
                 data = {'email': email, 'isexists': 'no'}
                 return Response({'data': data, 'message': "Unsuccessful, try again"}, status=status.HTTP_201_CREATED)
         except Exception as e:
+            print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class UpdatePassword(APIView):
@@ -220,6 +254,7 @@ class UpdatePassword(APIView):
         try:
             email = request.data.get('email')
             password = request.data.get('password')
+            print('empty: ',email)
             user = User.objects.filter(email=email).first()
             if user:
                 user.password = encrypt_password(password)
@@ -228,155 +263,156 @@ class UpdatePassword(APIView):
             else:
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            print(f"Error: {str(e)}") 
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class UploadCourse(APIView):
-    def post(self, request):
-        try:
-            data = self.request.data
-            course_serializer = CourseSerializer(data=data)
-            if course_serializer.is_valid():
-                course_instance = course_serializer.save()  
-                serialized_course = CourseSerializer(course_instance).data
-                logger.info("Course created successfully")
-                print(serialized_course)
-                return Response({'data': serialized_course, 'message': "Course created successfully"}, status=status.HTTP_201_CREATED)
-            else:
-                return Response({'error': course_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Error occurred: {e}")
-            return Response({'error': 'Something went wrong while uploading data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# class UploadCourse(APIView):
+#     def post(self, request):
+#         try:
+#             data = self.request.data
+#             course_serializer = CourseSerializer(data=data)
+#             if course_serializer.is_valid():
+#                 course_instance = course_serializer.save()  
+#                 serialized_course = CourseSerializer(course_instance).data
+#                 logger.info("Course created successfully")
+#                 print(serialized_course)
+#                 return Response({'data': serialized_course, 'message': "Course created successfully"}, status=status.HTTP_201_CREATED)
+#             else:
+#                 return Response({'error': course_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+#         except Exception as e:
+#             logger.error(f"Error occurred: {e}")
+#             return Response({'error': 'Something went wrong while uploading data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-    def get(self, request, *args, **kwargs):
-        try:
-            courses = Course.objects.filter(status=False)
-            if courses.exists():
-                course_serializer = CourseSerializer(courses, many=True)
-                return Response({'data': course_serializer.data, 'message': 'success'}, status=status.HTTP_200_OK)
-            else:
-                return Response({'data': 'empty', 'message': 'success'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Error occurred: {e}")
-            return Response({'error': 'Something went wrong while uploading data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#     def get(self, request, *args, **kwargs):
+#         try:
+#             courses = Course.objects.filter(status=False)
+#             if courses.exists():
+#                 course_serializer = CourseSerializer(courses, many=True)
+#                 return Response({'data': course_serializer.data, 'message': 'success'}, status=status.HTTP_200_OK)
+#             else:
+#                 return Response({'data': 'empty', 'message': 'success'}, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             logger.error(f"Error occurred: {e}")
+#             return Response({'error': 'Something went wrong while uploading data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class UploadModule(APIView):
-    def post(self, request):
-        try:
-            data = self.request.data
-            files = self.request.FILES  # Uploaded files
-            course = Course.objects.get(id=data['course'])
+# class UploadModule(APIView):
+#     def post(self, request):
+#         try:
+#             data = self.request.data
+#             files = self.request.FILES  # Uploaded files
+#             course = Course.objects.get(id=data['course'])
 
-            # Initialize URLs as None
-            overview_url = None
-            content_url = None
-            activity_url = None
+#             # Initialize URLs as None
+#             overview_url = None
+#             content_url = None
+#             activity_url = None
 
-            # Get uploaded files
-            content_file = files.get('content')  
-            intro_file = files.get('intro')
-            activity_file = files.get('activity')
+#             # Get uploaded files
+#             content_file = files.get('content')  
+#             intro_file = files.get('intro')
+#             activity_file = files.get('activity')
 
-            if content_file and intro_file and activity_file:
-                # Extract file extensions
-                ex1 = os.path.splitext(content_file.name)[1]
-                ex2 = os.path.splitext(intro_file.name)[1]
-                ex3 = os.path.splitext(activity_file.name)[1]
+#             if content_file and intro_file and activity_file:
+#                 # Extract file extensions
+#                 ex1 = os.path.splitext(content_file.name)[1]
+#                 ex2 = os.path.splitext(intro_file.name)[1]
+#                 ex3 = os.path.splitext(activity_file.name)[1]
 
-                if ex1 in ['.pptx', '.ppt']:
-                    content_result = upload(content_file, resource_type='raw')  # Upload to cloud storage
-                    content_url = content_result['secure_url']
-                elif ex1 == '.pdf':
-                    content_url = default_storage.save(content_file.name, content_file)  # Save locally
-                if ex2 in ['.pptx', '.ppt']:
-                    overview_result = upload(intro_file, resource_type='raw')  # Upload to cloud storage
-                    overview_url = overview_result['secure_url']
-                elif ex2 == '.pdf':
-                    overview_url = default_storage.save(intro_file.name, intro_file)  # Save locally
-                if ex3 in ['.pptx', '.ppt']:
-                    activity_result = upload(activity_file, resource_type='raw')  # Upload to cloud storage
-                    activity_url = activity_result['secure_url']
-                elif ex3 == '.pdf':
-                    activity_url = default_storage.save(activity_file.name, activity_file)  # Save locally
+#                 if ex1 in ['.pptx', '.ppt']:
+#                     content_result = upload(content_file, resource_type='raw')  # Upload to cloud storage
+#                     content_url = content_result['secure_url']
+#                 elif ex1 == '.pdf':
+#                     content_url = default_storage.save(content_file.name, content_file)  # Save locally
+#                 if ex2 in ['.pptx', '.ppt']:
+#                     overview_result = upload(intro_file, resource_type='raw')  # Upload to cloud storage
+#                     overview_url = overview_result['secure_url']
+#                 elif ex2 == '.pdf':
+#                     overview_url = default_storage.save(intro_file.name, intro_file)  # Save locally
+#                 if ex3 in ['.pptx', '.ppt']:
+#                     activity_result = upload(activity_file, resource_type='raw')  # Upload to cloud storage
+#                     activity_url = activity_result['secure_url']
+#                 elif ex3 == '.pdf':
+#                     activity_url = default_storage.save(activity_file.name, activity_file)  # Save locally
 
-                module = Module.objects.create(
-                    module_name=data['module_name'],
-                    module_description=data['module_description'],
-                    intro=overview_url,
-                    content=content_url,
-                    activity=activity_url,
-                    course=course
-                )
+#                 module = Module.objects.create(
+#                     module_name=data['module_name'],
+#                     module_description=data['module_description'],
+#                     intro=overview_url,
+#                     content=content_url,
+#                     activity=activity_url,
+#                     course=course
+#                 )
                 
-                serializer = ModuleSerializer(module)
-                return Response({'data': serializer.data, 'message': "Module created Successfully"}, status=status.HTTP_201_CREATED)
-            else:
-                return Response({'error': 'All required files (content, intro, activity) must be provided'}, status=status.HTTP_400_BAD_REQUEST)
+#                 serializer = ModuleSerializer(module)
+#                 return Response({'data': serializer.data, 'message': "Module created Successfully"}, status=status.HTTP_201_CREATED)
+#             else:
+#                 return Response({'error': 'All required files (content, intro, activity) must be provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
-            print(f"Error: {str(e)}") 
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#         except Exception as e:
+#             print(f"Error: {str(e)}") 
+#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-    def put(self, request, *args, **kwargs):
-        try:
-            # Extract data from the request
-            data = request.data
-            id = data.get('id')
-            files = request.FILES
-            extension = data.get('extension', '').lower()
-            url = None
-            file = files.get('file')
+#     def put(self, request, *args, **kwargs):
+#         try:
+#             # Extract data from the request
+#             data = request.data
+#             id = data.get('id')
+#             files = request.FILES
+#             extension = data.get('extension', '').lower()
+#             url = None
+#             file = files.get('file')
 
-            # Fetch the module object by ID
-            module = Module.objects.get(id=id)
+#             # Fetch the module object by ID
+#             module = Module.objects.get(id=id)
 
-            if file:
-             # Handle PowerPoint and PDF file uploads
-                if extension in ['pptx', 'ppt']:
-                 content_result = upload(file, resource_type='raw')  # Upload to cloud storage (Cloudinary)
-                 url = content_result['secure_url']
-                elif extension == 'pdf':
-                 # Save the PDF file to local storage
-                 url = default_storage.save(file.name, file)
+#             if file:
+#              # Handle PowerPoint and PDF file uploads
+#                 if extension in ['pptx', 'ppt']:
+#                  content_result = upload(file, resource_type='raw')  # Upload to cloud storage (Cloudinary)
+#                  url = content_result['secure_url']
+#                 elif extension == 'pdf':
+#                  # Save the PDF file to local storage
+#                  url = default_storage.save(file.name, file)
 
-            if url:
-             # Handle module content type update (content, overview, or activity)
-                if data.get('type') == 'content':
-                 delete_existing_file(module.content)  
-                 module.content = url
-                elif data.get('type') == 'overview':
-                    delete_existing_file(module.intro)  
-                    module.intro = url
-                elif data.get('type') == 'activity':
-                    delete_existing_file(module.activity)  # Use helper function
-                    module.activity = url
+#             if url:
+#              # Handle module content type update (content, overview, or activity)
+#                 if data.get('type') == 'content':
+#                  delete_existing_file(module.content)  
+#                  module.content = url
+#                 elif data.get('type') == 'overview':
+#                     delete_existing_file(module.intro)  
+#                     module.intro = url
+#                 elif data.get('type') == 'activity':
+#                     delete_existing_file(module.activity)  # Use helper function
+#                     module.activity = url
 
-            # Save the updated module
-            module.save()
+#             # Save the updated module
+#             module.save()
 
-            # Serialize the updated module and return the response
-            serializer = ModuleSerializer(module, partial=True)
-            return Response({'data': serializer.data, 'message': "Module updated successfully"}, status=status.HTTP_200_OK)
+#             # Serialize the updated module and return the response
+#             serializer = ModuleSerializer(module, partial=True)
+#             return Response({'data': serializer.data, 'message': "Module updated successfully"}, status=status.HTTP_200_OK)
 
-        except Module.DoesNotExist:
-         return Response({'error': 'Module not found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#         except Module.DoesNotExist:
+#          return Response({'error': 'Module not found'}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             print(f"Error: {str(e)}")
+#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class AssessmentQuestion(APIView):
-    def post(self,request):
-        try:
-            data = self.request.data
-            assess = AssessmentSerializer(data = data)
-            if assess.is_valid():
-                assess.save()
-                return Response({'data': assess.data, 'message': "assessment created Successfully"}, status=status.HTTP_201_CREATED)
-            else:
-                print(f"Validation errors: {assess.errors}")
-                return Response({'error': assess.errors}, status=status.HTTP_400_BAD_REQUEST)
+# class AssessmentQuestion(APIView):
+#     def post(self,request):
+#         try:
+#             data = self.request.data
+#             assess = AssessmentSerializer(data = data)
+#             if assess.is_valid():
+#                 assess.save()
+#                 return Response({'data': assess.data, 'message': "assessment created Successfully"}, status=status.HTTP_201_CREATED)
+#             else:
+#                 print(f"Validation errors: {assess.errors}")
+#                 return Response({'error': assess.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        except:
-            return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+#         except:
+#             return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
 class FetchCoursePreview(APIView):
     def post(self, request):
@@ -394,7 +430,7 @@ class FetchCoursePreview(APIView):
                 'course_name': course.course_name,
                 'course_description': course.course_description,
                 'course_duration': course.course_duration,
-                'video':course.video.url,
+                'video':course.video,
                 'isconfirmed': course.status,
                 'course_cover_image': course.course_cover_image.url,
                 'modules': []
@@ -645,81 +681,26 @@ class pickup(APIView):
             print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-class courseconfirm(APIView):
-    def post(self,request):
-        try:
-            data = request.data
-            course_id = data.get('courseid')
-            course = Course.objects.get(id=course_id)
-        
-            if course:
-                if(course.isconfirmed):
-                    course.isconfirmed = False
-                else:
-                    course.isconfirmed = True
-                course.save()
-                return Response({'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': 'course not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        except Exception as e:
-            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-# class courselist(APIView):
-#     def get(self, request, *args, **kwargs):
+# class courseconfirm(APIView):
+#     def post(self,request):
 #         try:
-#             courselists = Course.objects.filter(status=True)
-#             serializer = CourseSerializer(courselists, many=True)
-#             print(serializer.data)
-#             for each in serializer.data:
-#                 product = Product.objects.get(id=each['product'])
-#                 category = Category.objects.get(id=product.category)
-#                 print(category.id.level)
-#             return Response({'data': serializer.data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             print(f"Error: {str(e)}")
-#             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#             data = request.data
+#             course_id = data.get('courseid')
+#             course = Course.objects.get(id=course_id)
         
-# class courselist(APIView):
-#     def get(self, request, *args, **kwargs):
-#         try:
-#             courselists = Course.objects.filter(status=True)
-#             serializer = CourseSerializer(courselists, many=True)
-#             data = serializer.data
-#             print(serializer.data)
-#             for each in serializer.data:
-#                 product = Product.objects.get(id=each['product'])
-#                 category = Category.objects.get(id=product.category.id)  # Use .id to get the UUID
-#                 each['category'] = category.category_name
-#             print(data)
-#             return Response({'data': serializer.data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             print(f"Error: {str(e)}")
-#             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#             if course:
+#                 if(course.isconfirmed):
+#                     course.isconfirmed = False
+#                 else:
+#                     course.isconfirmed = True
+#                 course.save()
+#                 return Response({'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
+#             else:
+#                 return Response({'error': 'course not found'}, status=status.HTTP_404_NOT_FOUND)
 
-# class courselist(APIView):
-#     def get(self, request, *args, **kwargs):
-#         try:
-#             courselists = Course.objects.filter(status=True)
-#             serializer = CourseSerializer(courselists, many=True)
-#             data = serializer.data  # Serialized data
-#             print(data)
-#             enriched_data = []  # New list to store enriched data
-#             for each in data:
-#                 product = Product.objects.get(id=each['product'])
-#                 category = Category.objects.get(id=product.category.id)  # Use .id to get the UUID
-#                 module = Module.objects.get(course=each['id'])
-#                 each['module_count']=len(module)
-#                 each['category'] = category.category_name
-#                 enriched_data.append(each)  # Append the modified data to the list
-#             print(enriched_data)
-#             return Response({'data': enriched_data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
 #         except Exception as e:
-#             print(f"Error: {str(e)}")
 #             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+                
 class courselist(APIView):
     def get(self, request, *args, **kwargs):
         try:
@@ -741,7 +722,6 @@ class courselist(APIView):
         except Exception as e:
             print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class CourseListView(APIView):
     def get(self, request, *args, **kwargs):
@@ -803,8 +783,6 @@ class ProductView(APIView):
         return Response({'data': enriched_data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
         # return Response({"data": serializer.data}, status=status.HTTP_200_OK)
 
-
-
 class Eachproduct(APIView):
     def get(self, request):
         id = request.query_params.get('productid')
@@ -817,7 +795,6 @@ class Eachproduct(APIView):
         print(data)
         return Response({'data': data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
 
-        
 class addproduct(APIView):
     # def post(self, request):
     #     try:
@@ -1052,7 +1029,6 @@ class checkcertifyanswer(APIView):
             print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-
 class updatedetails(APIView):
     def post(self, request):
         try:
@@ -1093,149 +1069,146 @@ class canaccesscourse(APIView):
             print(f"Error: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-class StatisticsAPIView(APIView):
+# class StatisticsAPIView(APIView):
     
-    def get(self, request):
-        # User statistics
-        total_users = User.objects.count()
-        purchased_users = User.objects.filter(role='purchasedUser').count()
-        subscribed_users = User.objects.filter(role='CourseSubscribedUser').count()
-        # subscribed_users = User.objects.filter(subscription=True).count()
-        users_by_role = User.objects.values('role').annotate(count=Count('role'))
+#     def get(self, request):
+#         # User statistics
+#         total_users = User.objects.count()
+#         purchased_users = User.objects.filter(role='purchasedUser').count()
+#         subscribed_users = User.objects.filter(role='CourseSubscribedUser').count()
+#         # subscribed_users = User.objects.filter(subscription=True).count()
+#         users_by_role = User.objects.values('role').annotate(count=Count('role'))
 
-        # Offline Purchase statistics
-        total_purchases = OfflinePurchase.objects.count()
-        purchases_by_product = OfflinePurchase.objects.values('product_name').annotate(count=Count('product_name'))
-        revenue_by_product = OfflinePurchase.objects.values('product_name').annotate(revenue=Sum('product_price'))
-        purchases_by_payment_method = OfflinePurchase.objects.values('payment_term').annotate(count=Count('payment_term'))
+#         # Offline Purchase statistics
+#         total_purchases = OfflinePurchase.objects.count()
+#         purchases_by_product = OfflinePurchase.objects.values('product_name').annotate(count=Count('product_name'))
+#         revenue_by_product = OfflinePurchase.objects.values('product_name').annotate(revenue=Sum('product_price'))
+#         purchases_by_payment_method = OfflinePurchase.objects.values('payment_term').annotate(count=Count('payment_term'))
 
-        # Course statistics
-        total_courses = Course.objects.count()
-        courses_by_level = Course.objects.values('level').annotate(count=Count('level'))
-        courses_by_age_category = Course.objects.values('age_category').annotate(count=Count('age_category'))
-        courses_by_product = Course.objects.values('product_model').annotate(count=Count('product_model'))
+#         # Course statistics
+#         total_courses = Course.objects.count()
+#         courses_by_level = Course.objects.values('level').annotate(count=Count('level'))
+#         courses_by_age_category = Course.objects.values('age_category').annotate(count=Count('age_category'))
+#         courses_by_product = Course.objects.values('product_model').annotate(count=Count('product_model'))
 
-        # Preparing data for the serializer
-        data = {
-            'total_users': total_users,
-            'purchased_users': purchased_users,
-            'subscribed_users': subscribed_users,
-            'users_by_role': {item['role']: item['count'] for item in users_by_role},
+#         # Preparing data for the serializer
+#         data = {
+#             'total_users': total_users,
+#             'purchased_users': purchased_users,
+#             'subscribed_users': subscribed_users,
+#             'users_by_role': {item['role']: item['count'] for item in users_by_role},
 
-            'total_purchases': total_purchases,
-            'purchases_by_product': {item['product_name']: item['count'] for item in purchases_by_product},
-            'revenue_by_product': {item['product_name']: item['revenue'] for item in revenue_by_product},
-            'purchases_by_payment_method': {item['payment_term']: item['count'] for item in purchases_by_payment_method},
+#             'total_purchases': total_purchases,
+#             'purchases_by_product': {item['product_name']: item['count'] for item in purchases_by_product},
+#             'revenue_by_product': {item['product_name']: item['revenue'] for item in revenue_by_product},
+#             'purchases_by_payment_method': {item['payment_term']: item['count'] for item in purchases_by_payment_method},
 
-            'total_courses': total_courses,
-            'courses_by_level': {item['level']: item['count'] for item in courses_by_level},
-            'courses_by_age_category': {item['age_category']: item['count'] for item in courses_by_age_category},
-            'courses_by_product': {item['product_model']: item['count'] for item in courses_by_product},
-        }
+#             'total_courses': total_courses,
+#             'courses_by_level': {item['level']: item['count'] for item in courses_by_level},
+#             'courses_by_age_category': {item['age_category']: item['count'] for item in courses_by_age_category},
+#             'courses_by_product': {item['product_model']: item['count'] for item in courses_by_product},
+#         }
 
-        print(data)
-        return Response({"data": data}, status=status.HTTP_200_OK)
+#         print(data)
+#         return Response({"data": data}, status=status.HTTP_200_OK)
     
-class DeleteModuleView(APIView):
-    def delete(self, request, id):
-        try:
-            # Retrieve the module by its ID
-            module = Module.objects.get(id=id)
+# class DeleteModuleView(APIView):
+#     def delete(self, request, id):
+#         try:
+#             # Retrieve the module by its ID
+#             module = Module.objects.get(id=id)
 
-            # List of file fields in the Module model to check and delete
-            file_fields = ['intro', 'content', 'activity']
+#             # List of file fields in the Module model to check and delete
+#             file_fields = ['intro', 'content', 'activity']
 
-            for field in file_fields:
-                file_field = getattr(module, field)
+#             for field in file_fields:
+#                 file_field = getattr(module, field)
 
-                # If there's a file in the field
-                if file_field:
-                    file_url = file_field.url
-                    if file_url.endswith('.pdf'):
-                        # Delete PDF from default storage
-                        if default_storage.exists(file_field.name):
-                            default_storage.delete(file_field.name)
-                        else:
-                            print(f"PDF file not found in storage: {file_url}")
+#                 # If there's a file in the field
+#                 if file_field:
+#                     file_url = file_field.url
+#                     if file_url.endswith('.pdf'):
+#                         # Delete PDF from default storage
+#                         if default_storage.exists(file_field.name):
+#                             default_storage.delete(file_field.name)
+#                         else:
+#                             print(f"PDF file not found in storage: {file_url}")
 
-                    elif file_url.endswith(('.ppt', '.pptx')):
-                        # Delete PowerPoint files from Cloudinary
-                        # public_id = file_url.split('/')[-1].split('.')[0]  # Extract Cloudinary public ID
-                        path_parts = file_url.split('/')
-                        public_id = path_parts[-1]
-                        print(f"Deleting Cloudinary file with public_id: {public_id}")
-                        result = cloudinary.uploader.destroy(public_id, resource_type="raw")
-                        print(f"Cloudinary deletion result: {result}")
-                    else:
-                        print(f"Unsupported file type for deletion: {file_url}")
+#                     elif file_url.endswith(('.ppt', '.pptx')):
+#                         # Delete PowerPoint files from Cloudinary
+#                         # public_id = file_url.split('/')[-1].split('.')[0]  # Extract Cloudinary public ID
+#                         path_parts = file_url.split('/')
+#                         public_id = path_parts[-1]
+#                         print(f"Deleting Cloudinary file with public_id: {public_id}")
+#                         result = cloudinary.uploader.destroy(public_id, resource_type="raw")
+#                         print(f"Cloudinary deletion result: {result}")
+#                     else:
+#                         print(f"Unsupported file type for deletion: {file_url}")
 
-            # Delete the module from the database
-            module.delete()
+#             # Delete the module from the database
+#             module.delete()
 
-            return Response({'message': 'Module and associated files deleted successfully'}, status=status.HTTP_200_OK)
+#             return Response({'message': 'Module and associated files deleted successfully'}, status=status.HTTP_200_OK)
 
-        except Module.DoesNotExist:
-            return Response({'error': 'Module not found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            print(f"Error during deletion: {str(e)}")
-            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+#         except Module.DoesNotExist:
+#             return Response({'error': 'Module not found'}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             print(f"Error during deletion: {str(e)}")
+#             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
         
-class deleteQuestion(APIView):
-    def delete(self, request, id):
-        try:
-            assess = Assessment.objects.get(id=id)
-            assess.delete()
-            return Response({'message': 'deleted successfully'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            print(f"Error during deletion: {str(e)}")
-            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+# class deleteQuestion(APIView):
+#     def delete(self, request, id):
+#         try:
+#             assess = Assessment.objects.get(id=id)
+#             assess.delete()
+#             return Response({'message': 'deleted successfully'}, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             print(f"Error during deletion: {str(e)}")
+#             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-class deleteCourse(APIView):
-    def delete(self, request, id):
-        try:
-            course = Course.objects.get(id=id)
+# class deleteCourse(APIView):
+#     def delete(self, request, id):
+#         try:
+#             course = Course.objects.get(id=id)
 
-            # Helper function to delete files conditionally
-            def delete_file(file_field):
-                if file_field:
-                    file_path = file_field.path
-                    file_extension = file_path.split('.')[-1].lower()
+#             # Helper function to delete files conditionally
+#             def delete_file(file_field):
+#                 if file_field:
+#                     file_path = file_field.path
+#                     file_extension = file_path.split('.')[-1].lower()
 
-                    # Check if the file is a PDF
-                    if file_extension == "pdf":
-                        default_storage.delete(file_path)
+#                     # Check if the file is a PDF
+#                     if file_extension == "pdf":
+#                         default_storage.delete(file_path)
 
-                    # Check if the file is a PPT or PPTX and delete from Cloudinary
-                    elif file_extension in ["ppt", "pptx"]:
-                        path_parts = file_path.split('/')
-                        public_id = path_parts[-1]
-                        print(f"Deleting Cloudinary file with public_id: {public_id}")
-                        result = cloudinary.uploader.destroy(public_id, resource_type="raw")
-                        print(f"Cloudinary deletion result: {result}")
-                    else:
-                        default_storage.delete(file_path)
+#                     # Check if the file is a PPT or PPTX and delete from Cloudinary
+#                     elif file_extension in ["ppt", "pptx"]:
+#                         path_parts = file_path.split('/')
+#                         public_id = path_parts[-1]
+#                         print(f"Deleting Cloudinary file with public_id: {public_id}")
+#                         result = cloudinary.uploader.destroy(public_id, resource_type="raw")
+#                         print(f"Cloudinary deletion result: {result}")
+#                     else:
+#                         default_storage.delete(file_path)
 
-            # Delete the course cover image from default storage
-            if course.course_cover_image:
-                delete_file(course.course_cover_image)
+#             # Delete the course cover image from default storage
+#             if course.course_cover_image:
+#                 delete_file(course.course_cover_image)
 
-            # Delete files in each module related to the course
-            for module in course.modules.all():
-                delete_file(module.intro)
-                delete_file(module.content)
-                delete_file(module.activity)
+#             # Delete files in each module related to the course
+#             for module in course.modules.all():
+#                 delete_file(module.intro)
+#                 delete_file(module.content)
+#                 delete_file(module.activity)
 
-            # Delete the course record
-            course.delete()
-
-            return Response({'message': 'Deleted successfully'}, status=status.HTTP_200_OK)
-        
-        except Course.DoesNotExist:
-            return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            print(f"Error during deletion: {str(e)}")
-            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+#             # Delete the course record
+#             course.delete()
+#             return Response({'message': 'Deleted successfully'}, status=status.HTTP_200_OK)
+#         except Course.DoesNotExist:
+#             return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             print(f"Error during deletion: {str(e)}")
+#             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
 class CertificationAPIView(APIView):
     def get(self, request, *args, **kwargs):
@@ -1278,17 +1251,17 @@ class CertificationAPIView(APIView):
         logger.error(serializer.errors)
         return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
-class deletecertifyques(APIView):
-    def delete(self, request, id, courseid):
-        try:
-            certifydel = CertificationQuestion.objects.get(id=id) 
-            certifydel.delete()
-            certifications = Certification.objects.filter(course_id=courseid)
-            serializer = CertificationsSerializer(certifications, many=True)
-            return Response({"data": serializer.data,'message': 'deleted successfully'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            print(f"Error during deletion: {str(e)}")
-            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+# class deletecertifyques(APIView):
+#     def delete(self, request, id, courseid):
+#         try:
+#             certifydel = CertificationQuestion.objects.get(id=id) 
+#             certifydel.delete()
+#             certifications = Certification.objects.filter(course_id=courseid)
+#             serializer = CertificationsSerializer(certifications, many=True)
+#             return Response({"data": serializer.data,'message': 'deleted successfully'}, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             print(f"Error during deletion: {str(e)}")
+#             return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
 class CertificationUpdateAPIView(APIView):
     def put(self, request, pk):
@@ -1312,16 +1285,10 @@ class OrderAPIView(APIView):
             amount = data.get('amount')
             currency = data.get('currency')
             receipt = data.get('receipt')
-            # notes = data.get('notes')
-            
-            serializedTransaction = TransactionOrderSerializer(data=data)
-            if serializedTransaction.is_valid():
-                serializedTransaction.save()
-                response = client.order.create(data={'amount': amount, 'currency': currency, 'receipt': receipt})
-                response['user_id'] = user_id
-                return Response({'data': response}, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': serializedTransaction.errors}, status=status.HTTP_400_BAD_REQUEST)
+            response = client.order.create(data={'amount': amount, 'currency': currency, 'receipt': receipt})
+            response['user_id'] = user_id
+            print(response)
+            return Response({'data': response}, status=status.HTTP_200_OK)
         except Exception as e:
             print("Exception:", str(e)) 
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1331,66 +1298,33 @@ class CheckoutAPIView(APIView):
         try:
             data = request.data
             user_id = data.get('user_id')
-            razorpay_order_id = data.get('orderId')
-            razorpay_payment_id = data.get('paymentId')
-            razorpay_signature = data.get('signature')
+            # amount = data.get('amount')
+            # currency = data.get('currency')
+            # receipt = data.get('receipt')
+            razorpay_order_id = data.get('razorpay_order_id')
+            razorpay_payment_id = data.get('razorpay_payment_id')
+            razorpay_signature = data.get('razorpay_signature')
             print(data)
+            # serializedTransaction = TransactionCheckOutSerializer(data=data)
+            # if(serializedTransaction.is_valid()):
+            response = client.utility.verify_payment_signature({'razorpay_order_id': razorpay_order_id,'razorpay_payment_id': razorpay_payment_id, 'razorpay_signature': razorpay_signature})
             serializedTransaction = TransactionCheckOutSerializer(data=data)
-            if(serializedTransaction.is_valid()):
-                response = client.utility.verify_payment_signature({'razorpay_order_id': razorpay_order_id,'razorpay_payment_id': razorpay_payment_id, 'razorpay_signature': razorpay_signature})
-                print(response)
-                # Retrieve the Transaction object based on user_id
-                transaction = get_object_or_404(Transaction, user_id=user_id)
-                print(transaction)
-                # Update transaction details
-                transaction.razorpay_order_id = razorpay_order_id
-                transaction.razorpay_payment_id = razorpay_payment_id
-                transaction.razorpay_signature = razorpay_signature
-                
-                # Save the updated transaction
-                transaction.save()
-                print(transaction.razorpay_order_id)
+            if serializedTransaction.is_valid():
                 # Save the serialized data
                 serializedTransaction.save()
-                return Response({'data': {"response":response, "user_id":user_id}}, status=status.HTTP_200_OK)
+                usersub = User.objects.filter(id=user_id).first()
+                usersub.subscription = True
+                usersub.role = 'CourseSubscribedUser'
+                usersub.save()
+                print(serializedTransaction.data)
+                return Response({'data': serializedTransaction.data}, status=status.HTTP_200_OK)
             else:
+                print(serializedTransaction.errors)
                 return Response({'error': serializedTransaction.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(e)
+            print("Exception:", str(e)) 
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
  
-
-# class UserReviews(APIView):
-#     def post(self, request):
-#         try:
-#             data = request.data
-#             serialiser = UserReviewSerializer(data=data)
-#             rating_sum = 0
-#             if serialiser.is_valid():
-#                 reviewdata = serialiser.save()
-#                 review_data = UserReview.objects.filter(course=reviewdata.course)
-#                 course = Course.objects.filter(id=reviewdata.course).first()
-#                 reviews_list = []
-#                 for user in review_data:
-#                     reviewer = User.objects.get(id=user.user.id)
-#                     reviews_list.append({
-#                         'username': reviewer.username,
-#                         'rating': user.rating,
-#                         'review': user.review,
-#                         'createdAt': user.created_at
-#                     })
-#                     rating_sum = rating_sum+user.rating
-#                 rating_avg = rating_sum/reviews_list.length
-#                 course.rating = rating_avg
-#                 course.save()
-#                 return Response({'data': reviews_list}, status=status.HTTP_200_OK)
-#             else:
-#                 print("Serializer errors:", serialiser.errors)  # Debugging
-#                 return Response({'error': serialiser.errors}, status=status.HTTP_400_BAD_REQUEST)
-#         except Exception as e:
-#             print("Exception:", str(e))  # Debugging
-#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 class UserReviews(APIView):
     def post(self, request):
         try:
@@ -1412,6 +1346,7 @@ class UserReviews(APIView):
                 for review in review_data_list:
                     reviewer = User.objects.get(id=review.user.id)
                     reviews_list.append({
+                        'id':review.id,
                         'username': reviewer.username,
                         'rating': review.rating,
                         'review': review.review,
@@ -1444,6 +1379,7 @@ class UserReviews(APIView):
 
             for review in review_data:
                 reviews_list.append({
+                    'id':review.id,
                     'username': review.user.username,  
                     'rating': review.rating,
                     'review': review.review,
@@ -1456,7 +1392,16 @@ class UserReviews(APIView):
             print("Exception:", str(e))  
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-
+class delcoursereview(APIView):
+    def delete(self, request, id):
+        try:
+            reviewdel = UserReview.objects.get(id=id) 
+            reviewdel.delete()
+            return Response({"data": 'success','message': 'deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error during deletion: {str(e)}")
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+    
 class UserCourses(APIView):
 
     def get(self, request):
@@ -1511,11 +1456,13 @@ class UserCourses(APIView):
                     per = (certify.obtained_marks / certify.total_marks) * 100
                     if per >= 65:
                         completed += 1
-
+            user = User.objects.filter(id=user_id).first()
             # Construct response
             datas = {
                 'completed_course_count': completed,
                 'course_started':courses_started,
+                'name':user.username,
+                'profiles': user.profile.url,
                 'ongoing_courses': ongoing_courses
             }
             return Response({'data': datas}, status=status.HTTP_200_OK)
@@ -1535,7 +1482,10 @@ class delaccount(APIView):
             if serializer.is_valid():
                 serializer.save()
                 delacc = User.objects.get(id=id) 
-                delacc.delete()
+                # delacc['inactive'] = True;
+                delacc.inactive = True  # Use attribute access instead of indexing
+                # delacc.delete()
+                delacc.save()
                 return Response({"data": 'success', 'message': 'Deleted successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -1543,6 +1493,7 @@ class delaccount(APIView):
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            print("Exception:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 class categories(APIView):
@@ -1551,14 +1502,12 @@ class categories(APIView):
             cat = Category.objects.all()
             data = []
             for each in cat:
-                data.append(each.category_name)  # Access category_name directly from each Category object
+                data.append(each.category_name) 
             print(data)
             return Response({'data': data, 'message': 'confirmed successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             print("Exception:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-
     
 class ProductReviews(APIView):
     def post(self, request):
@@ -1579,6 +1528,7 @@ class ProductReviews(APIView):
                 for review in review_data_list:
                     reviewer = User.objects.get(id=review.user.id)
                     reviews_list.append({
+                        'id':review.id,
                         'username': reviewer.username,
                         'rating': review.rating,
                         'review': review.review,
@@ -1611,6 +1561,7 @@ class ProductReviews(APIView):
 
             for review in review_data:
                 reviews_list.append({
+                    'id':review.id,
                     'username': review.user.username,  
                     'rating': review.rating,
                     'review': review.review,
@@ -1622,4 +1573,198 @@ class ProductReviews(APIView):
         except Exception as e:
             print("Exception:", str(e))  
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class delproductreview(APIView):
+    def delete(self, request, id):
+        try:
+            productreviewdel = ProductReview.objects.get(id=id) 
+            productreviewdel.delete()
+            return Response({"data": 'success','message': 'deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error during deletion: {str(e)}")
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+class SubscriptionAmount(APIView):
+    def get(self,request):
+        try:
+            data = SubscriptionMoney.objects.all().first()
+            count = data.receiptcount
+            count = count + 1
+            data.receiptcount = count
+            data.save()
+            serialise = subscribeserialiser(data)
+            return Response({'data': serialise.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+class transact(APIView):
+    def get(self, request):
+        try:
+            user = request.query_params.get('user_id')
+            if not user:
+                return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            data = Transaction.objects.filter(user_id=user)
+            serialise = transactiondetails(data, many=True)
+            print(serialise.data)
+            return Response({'data': serialise.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class cartproduct(APIView):
+    def post(self, request):
+        try:
+            data = request.data
+
+            # Check if required fields are provided
+            proid = data.get('product')
+            user_id = data.get('user')
+            if not proid or not user_id:
+                return Response({'error': 'Product ID and User ID are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if the product exists in the cart without a transaction
+            cart_data = CartData.objects.filter(product=proid, transact=None).first()
+            if cart_data:
+                product = Product.objects.filter(id=cart_data.product.id).first()
+                cart_data.quantity += 1
+                cart_data.amount = cart_data.quantity * product.price
+                cart_data.save()
+                return Response({'data': 'success'}, status=status.HTTP_200_OK)
+            else:
+                serializer = cartserialiser(data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response({'data': 'success'}, status=status.HTTP_200_OK)
+                else:
+                    print(serializer.errors)
+                    return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print("Exception:", str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        try:
+            user = request.query_params.get('user_id')
+            if not user:
+             return Response({'error': 'User ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            data = CartData.objects.filter(user_id=user, transact=None)
+            serialdata = cartserial(data, many=True)
+
+            # Iterate through the serialized data and replace the product field with serialized product data
+            for datas in serialdata.data:
+                product_id = datas['product']  # Access the product ID from the serialized data
+                product = Product.objects.filter(id=product_id).first()
+                if product:
+                    serialproduct = ProductSerializer(product).data  # Serialize the product
+                    datas['product'] = serialproduct  # Replace the product field with serialized product data
+
+            print(serialdata.data)
+            return Response({'data': serialdata.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        data = request.data
+        cart_id = data.get('id')
+        cart_type = data.get('type')
+        
+        # Fetch cart by id
+        cart = CartData.objects.filter(id=cart_id).first()
+        if not cart:
+            return Response({'data': 'error', 'message': 'Cart item not found'}, status=404)
+        product = Product.objects.filter(id=cart.product.id).first()
+        if not product:
+            return Response({'data': 'error', 'message': 'Product not found'}, status=404)
+        
+        if cart_type == 'sub':
+            check = cart.quantity - 1
+            if check > 0:
+                cart.quantity -= 1
+                cart.amount = cart.quantity * product.price
+                cart.save()
+                return Response({'data': 'success', 'message': 'Offline purchase updated successfully'})
+            else:
+                return Response({'data': 'error', 'message': 'Quantity cannot be less than 0'}, status=400)
+        
+        elif cart_type == 'add':
+            cart.quantity += 1
+            cart.amount = cart.quantity * product.price 
+            cart.save()
+            return Response({'data': 'success', 'message': 'Offline purchase updated successfully'})
+        
+        return Response({'data': 'error', 'message': 'Invalid type'}, status=400)
+
+class carttransact(APIView):
+    def post(self, request):
+        try:
+            user_id = request.data.get('user')
+            transact_id = request.data.get('transact')
+
+            # Fetch the Transaction instance
+            try:
+                transaction = Transaction.objects.get(id=transact_id)
+            except Transaction.DoesNotExist:
+                return Response({'error': 'Transaction does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch the cart items belonging to the user
+            cart_items = CartData.objects.filter(user=user_id, transact=None)
+            if not cart_items.exists():
+                return Response({'error': 'No cart items found for the user'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Update the transact field for cart items
+            for item in cart_items:
+                item.transact = transaction
+                item.save()
+
+            return Response({'data': 'Cart updated successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class delcart(APIView):
+    def delete(self, request, id):
+        try:
+            carddel = CartData.objects.get(id=id) 
+            carddel.delete()
+            return Response({"data": 'success','message': 'deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error during deletion: {str(e)}")
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        
+class getprodetail(APIView):
+    def get(self,request):
+        try:
+            transacid = request.query_params.get('id')
+            prodetail = []
+            data = CartData.objects.filter(transact=transacid)
+            for cartdata in data:
+                product = Product.objects.filter(id=cartdata.product.id).first()
+                datas = {
+                    'product_name':product.product_name,
+                    'price': product.price,
+                    'quantity':cartdata.quantity,
+                    'total':cartdata.amount
+                }
+                prodetail.append(datas)
+            print(prodetail)
+            return Response({'data': prodetail}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class buyerct(APIView):
+    def get(self, request):
+        try:
+            userid = request.query_params.get('user')  
+            data = CartData.objects.all()
+            count = data.count()  
+            print(count)
+            return Response({'data': count}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

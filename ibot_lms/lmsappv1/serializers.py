@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category, ProductReview
+from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category, ProductReview, SubscriptionMoney, CartData
 from django.core.files.storage import default_storage
 
 # Serializer for User model
@@ -8,6 +8,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = '__all__'
 
+class SignUpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id','username','password','email','mobile','subscription']
+        
 class Productreviewserialiser(serializers.ModelSerializer):
     class Meta:
         model = ProductReview
@@ -136,21 +141,21 @@ class UserCourseProgressSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'course', 'course_name', 'last_module', 'last_module_name', 'last_task', 'last_task_name', 'is_completed', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
     
-class StatisticsSerializer(serializers.Serializer):
-    total_users = serializers.IntegerField()
-    purchased_users = serializers.IntegerField()
-    subscribed_users = serializers.IntegerField()
-    users_by_role = serializers.DictField(child=serializers.IntegerField())
+# class StatisticsSerializer(serializers.Serializer):
+#     total_users = serializers.IntegerField()
+#     purchased_users = serializers.IntegerField()
+#     subscribed_users = serializers.IntegerField()
+#     users_by_role = serializers.DictField(child=serializers.IntegerField())
     
-    total_purchases = serializers.IntegerField()
-    purchases_by_product = serializers.DictField(child=serializers.IntegerField())
-    revenue_by_product = serializers.DictField(child=serializers.FloatField())
-    purchases_by_payment_method = serializers.DictField(child=serializers.IntegerField())
+#     total_purchases = serializers.IntegerField()
+#     purchases_by_product = serializers.DictField(child=serializers.IntegerField())
+#     revenue_by_product = serializers.DictField(child=serializers.FloatField())
+#     purchases_by_payment_method = serializers.DictField(child=serializers.IntegerField())
     
-    total_courses = serializers.IntegerField()
-    courses_by_level = serializers.DictField(child=serializers.IntegerField())
-    courses_by_age_category = serializers.DictField(child=serializers.IntegerField())
-    courses_by_product = serializers.DictField(child=serializers.IntegerField())
+#     total_courses = serializers.IntegerField()
+#     courses_by_level = serializers.DictField(child=serializers.IntegerField())
+#     courses_by_age_category = serializers.DictField(child=serializers.IntegerField())
+#     courses_by_product = serializers.DictField(child=serializers.IntegerField())
 
 class CourseFilterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -190,17 +195,11 @@ class OfflinePurchaseSerializer(serializers.ModelSerializer):
         model = OfflinePurchase
         fields = '__all__'
 
-# Serializer for Transaction model for order-related fields
-class TransactionOrderSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Transaction
-        fields = ['user_id', 'amount', 'currency', 'receipt']
-
 # Serializer for Transaction model for checkout-related fields
 class TransactionCheckOutSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['user_id', 'razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature']
+        fields = ['user_id', 'amount', 'currency', 'receipt','razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature','id']
 
 class CourseListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -221,3 +220,23 @@ class categoryserialiser(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['category_name']
+
+class subscribeserialiser(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionMoney
+        fields = ['id','amount','receiptcount']
+
+class transactiondetails(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['id','user_id','razorpay_order_id','razorpay_payment_id','amount','receipt']
+
+class cartserialiser(serializers.ModelSerializer):
+    class Meta:
+        model = CartData
+        fields = ['user','product','amount']
+
+class cartserial(serializers.ModelSerializer):
+        class Meta:
+            model = CartData
+            fields = ['id','quantity','user','product','amount']

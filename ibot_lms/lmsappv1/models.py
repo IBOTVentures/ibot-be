@@ -1,9 +1,6 @@
-
 from django.db import models
 from django.utils import timezone
 import uuid
-from django.db.models import Sum
-from cloudinary.models import CloudinaryField
 
 class User(models.Model):
     Role = (
@@ -17,7 +14,7 @@ class User(models.Model):
     username = models.CharField(max_length=100, unique=True,null=True, blank=True)
     password = models.CharField(max_length=100)
     age = models.CharField(max_length=3,null=True, blank=True)
-    profile = models.ImageField(upload_to='images/profile/',null=True, blank=True)
+    profile = models.ImageField(upload_to='profile/',null=True, blank=True)
     role = models.CharField(max_length=50, choices=Role, default='visitor')
     subscription = models.BooleanField(default=False)
     first_name = models.CharField(max_length=100,null=True, blank=True)
@@ -25,7 +22,7 @@ class User(models.Model):
     last_name = models.CharField(max_length=100,null=True, blank=True)
     mobile = models.CharField(max_length=15,null=True, blank=True)
     address = models.TextField(null=True, blank=True)
-    # inactive = models.BooleanField(default=True)
+    inactive = models.BooleanField(default=False)
     city = models.CharField(max_length=100,null=True, blank=True)
     state = models.CharField(max_length=100,null=True, blank=True)
     country = models.CharField(max_length=100,null=True, blank=True)
@@ -71,8 +68,9 @@ class Course(models.Model):
     course_duration = models.IntegerField()
     status = models.BooleanField(default=False)
     rating = models.IntegerField(default=0)
-    course_cover_image = models.ImageField(upload_to='images/', null=True, blank=True)
-    video = models.FileField(upload_to='videos/', null=True, blank=True)
+    course_cover_image = models.ImageField(upload_to='course/', null=True, blank=True)
+    # video = models.FileField(upload_to='videos/', null=True, blank=True)
+    video = models.TextField(null=True, blank=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='courses', null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
@@ -81,9 +79,9 @@ class Module(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     module_name = models.CharField(max_length=255)
     module_description = models.TextField(null=True, blank=True)
-    intro = models.FileField(upload_to='pdfs/',null=True, blank=True)
-    content = models.FileField(upload_to='pdfs/',null=True, blank=True)
-    activity = models.FileField(upload_to='pdfs/',null=True, blank=True)
+    intro = models.FileField(upload_to='intro/',null=True, blank=True)
+    content = models.FileField(upload_to='content/',null=True, blank=True)
+    activity = models.FileField(upload_to='activity/',null=True, blank=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='modules')  # One Course has many Modules
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
@@ -121,25 +119,15 @@ class CertificationQuestion(models.Model):
     updated_at = models.DateTimeField(default=timezone.now)
 
 class Transaction(models.Model):
-    STATUS_CHOICES = [
-        ('SUCCESS', 'Success'),
-        ('FAILED', 'Failed'),
-        ('PENDING', 'Pending'),
-    ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')    
-    # Razorpay fields
     razorpay_payment_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     razorpay_order_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     razorpay_signature = models.CharField(max_length=255, null=True, blank=True)
-    
-    # Transaction details
     amount = models.IntegerField(null=True, blank=True)  # Store in appropriate currency format
     currency = models.CharField(max_length=10, default='INR')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    receipt = models.CharField(max_length=100, unique=True, null=True, blank=True)
-    
-    # Timestamps
+    # status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    receipt = models.CharField(unique=True, null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -232,4 +220,20 @@ class Deleteaccount(models.Model):
     reason = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
-    
+
+class SubscriptionMoney(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    amount = models.IntegerField()
+    receiptcount = models.IntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+class CartData(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_cart')
+    transact = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='product_transaction', null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='userid')
+    quantity = models.IntegerField(default=1)
+    amount = models.IntegerField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
