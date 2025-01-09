@@ -104,12 +104,29 @@ class SendOTP(APIView):
                     else:
                         return Response(otp_save.errors, status=status.HTTP_400_BAD_REQUEST)
             send_mail(
-                    'OTP - Email Verification',
-                    f'Your OTP is: {otp}',
-                    'ibotventures123@gmail.com',
-                    [email],
-                    fail_silently=False
+                'Your One-Time Verification Code',
+                f"""
+                Dear {username},
+
+                Thank you for signing up with us!
+
+                To complete your registration and verify your account, please enter the following One-Time Password (OTP) on the verification page:
+
+                Your OTP is: {otp}
+
+                If you did not request this, please ignore this email.
+
+                Thank you for being a part of our community!  
+                If you have any questions, feel free to reach out to us at info@mi-bot.com.
+
+                Best regards,  
+                The MiBot Ventures Team
+                """,
+                'ibotventures123@gmail.com',
+                [email],
+                fail_silently=False
             )
+
             return Response({'data': data, 'message': "OTP sent successfully"}, status=status.HTTP_201_CREATED)
         except Exception as e:
             print(f"Error occurred: {str(e)}")
@@ -233,13 +250,31 @@ class Forget(APIView):
                         otp_save.save()
                     else:
                         return Response(otp_save.errors, status=status.HTTP_400_BAD_REQUEST)
+
                 send_mail(
-                    'Reset Password',
-                    f'Reset your password by entering OTP - {otp}',
+                    'Reset Your Password',
+                    f"""
+                    Dear user,
+
+                    We received a request to reset your password.
+
+                    To reset your password, please use the following One-Time Password (OTP) on the reset page:
+
+                    Your OTP is: {otp}
+
+                    If you did not request a password reset, please ignore this email and your password will remain unchanged.
+
+                    Thank you for using our services!  
+                    If you have any questions, feel free to reach out to us at info@mi-bot.com.
+
+                    Best regards,  
+                    The MiBot Ventures Team
+                    """,
                     'ibotventures123@gmail.com',
                     [email],
                     fail_silently=False
                 )
+
                 datas = {'email': email, 'isexists': 'yes'}
                 return Response({'data': datas, 'message': "Mail sent successfully"}, status=status.HTTP_201_CREATED)
             else:
