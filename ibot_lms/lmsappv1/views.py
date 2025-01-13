@@ -23,7 +23,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from .tasks import add
 from celery.result import AsyncResult
-
+os.getenv('EMAIL_HOST_PASSWORD')
 logger = logging.getLogger(__name__)
 UPLOAD_DIR = '/media/'
 client = razorpay.Client(auth=("rzp_test_88QnZEgha1Ucxs", "yMHU4vBu66sKyux6DJ7OfKu8"))
@@ -83,7 +83,7 @@ class SendOTP(APIView):
             username = request.data.get('username')
             type = request.data.get('type')
             otp_record = OTP.objects.filter(email=email).first()
-            if type:
+            if type == 'send':
                 if User.objects.filter(email=email,inactive=False).exists():
                     return Response({'data': 'email_found'}, status=status.HTTP_200_OK)
                 elif User.objects.filter(username=username,inactive=False).exists():
@@ -103,29 +103,52 @@ class SendOTP(APIView):
                         data = { 'email': email, 'isfound': 'notfound'}
                     else:
                         return Response(otp_save.errors, status=status.HTTP_400_BAD_REQUEST)
-            send_mail(
-                'Your One-Time Verification Code',
-                f"""
-                Dear {username},
+            if(type == 'send'):
+                send_mail(
+                    'Your One-Time Verification Code',
+                    f"""
+                    Dear {username},
 
-                Thank you for signing up with us!
+                    Thank you for signing up with us!
 
-                To complete your registration and verify your account, please enter the following One-Time Password (OTP) on the verification page:
+                    To complete your registration and verify your account, please enter the following One-Time Password (OTP) on the verification page:
 
-                Your OTP is: {otp}
+                    Your OTP is: {otp}
 
-                If you did not request this, please ignore this email.
+                    If you did not request this, please ignore this email.
 
-                Thank you for being a part of our community!  
-                If you have any questions, feel free to reach out to us at info@mi-bot.com.
+                    Thank you for being a part of our community!  
+                    If you have any questions, feel free to reach out to us at info@mi-bot.com.
 
-                Best regards,  
-                The MiBot Ventures Team
-                """,
-                'ibotventures123@gmail.com',
-                [email],
-                fail_silently=False
-            )
+                    Best regards,  
+                    The MiBot Ventures Team
+                    """,
+                    os.getenv('EMAIL_HOST_USER'),
+                    [email],
+                    fail_silently=False
+                )
+            elif(type == 'resend'):
+                send_mail(
+                    'Your Requested OTP - Resend',
+                    f"""
+                    Dear User,
+
+                    As per your request, we are resending your One-Time Password (OTP).
+
+                    Your OTP is: {otp}
+
+                    If you did not request this, please ignore this email.
+
+                    Thank you for being a valued user!  
+                    If you have any questions, feel free to reach out to us at info@mi-bot.com.
+
+                    Best regards,  
+                    The MiBot Ventures Team
+                    """,
+                    os.getenv('EMAIL_HOST_USER'),
+                    [email],
+                    fail_silently=False
+                )
 
             return Response({'data': data, 'message': "OTP sent successfully"}, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -237,7 +260,7 @@ class Forget(APIView):
     def post(self, request):
         try:
             email = request.data.get("email")
-            if User.objects.filter(email=email).exists():
+            if User.objects.filter(email=email,inactive=False).exists():
                 otp = generate_otp()
                 otp_record = OTP.objects.filter(email=email).first()
                 if otp_record:
@@ -254,7 +277,7 @@ class Forget(APIView):
                 send_mail(
                     'Reset Your Password',
                     f"""
-                    Dear user,
+                    Dear User,
 
                     We received a request to reset your password.
 
@@ -270,7 +293,7 @@ class Forget(APIView):
                     Best regards,  
                     The MiBot Ventures Team
                     """,
-                    'ibotventures123@gmail.com',
+                    os.getenv('EMAIL_HOST_USER'),
                     [email],
                     fail_silently=False
                 )
