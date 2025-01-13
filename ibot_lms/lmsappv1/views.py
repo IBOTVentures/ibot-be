@@ -23,7 +23,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from .tasks import add
 from celery.result import AsyncResult
-os.getenv('EMAIL_HOST_PASSWORD')
+
 logger = logging.getLogger(__name__)
 UPLOAD_DIR = '/media/'
 client = razorpay.Client(auth=("rzp_test_88QnZEgha1Ucxs", "yMHU4vBu66sKyux6DJ7OfKu8"))
