@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import SendOTP, Forget, UpdatePassword, FetchCoursePreview,courselist, addproduct,getdetails,updatedetails,CertificationAPIView, CourseListView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, tasktrack, canviewmodule, pickup, checkcertifyanswer, Signup,UserReviews, UserCourses,delaccount,categories, ProductView,CategoryAPIView, Eachproduct, ProductReviews,SubscriptionAmount,transact,cartproduct, carttransact,delcart,getprodetail, buyerct, activates, delcoursereview, delproductreview
+from .views import SendOTP, Forget, UpdatePassword, FetchCoursePreview,courselist, addproduct,getdetails,updatedetails,CertificationAPIView, CourseListView, OrderAPIView, CheckoutAPIView, SignInAPIView, OfflinePurchaseUserAPIView, canaccesscourse, checkanswers, tasktrack, canviewmodule, pickup, checkcertifyanswer, Signup,UserReviews, UserCourses,delaccount,categories, ProductView,CategoryAPIView, Eachproduct, ProductReviews,SubscriptionAmount,transact,cartproduct, carttransact,delcart,getprodetail, buyerct, activates, delcoursereview, delproductreview,Advertisement,Certify
 
 urlpatterns = [
 
@@ -53,7 +53,9 @@ urlpatterns = [
     path('delcart/<uuid:id>/',delcart.as_view(),name='delcart'),
     path('getprodetail/',getprodetail.as_view(),name='getprodetail'),
     path('certifications/', CertificationAPIView.as_view(), name='certifications'),
-    # path('certificationsupdate/<uuid:pk>/', CertificationUpdateAPIView.as_view(), name='certification-detail'),  
+    # path('certificationsupdate/<uuid:pk>/', CertificationUpdateAPIView.as_view(), name='certification-detail'), 
+    path('advertise/',Advertisement.as_view(),name='advertise'), 
+    path('issuecertificate/',Certify.as_view(),name='issuecertificate'),
     
 ]
 

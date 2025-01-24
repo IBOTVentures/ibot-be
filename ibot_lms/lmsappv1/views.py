@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Sum, Avg
 from .filters import CourseFilter,ProductFilter
-from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category, ProductReview, SubscriptionMoney, CartData
-from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser, Productreviewserialiser,SignUpSerializer,subscribeserialiser, transactiondetails,cartserialiser,cartserial
+from .models import User, OfflinePurchase, Transaction, Module, Course, Assessment, Certification, CertificationQuestion, OTP, UserCertificationScore, Product, UserReview, Category, ProductReview, SubscriptionMoney, CartData, AdvertisementBanner
+from .serializers import CertificationsSerializer, CourseFilterSerializer, CourseListSerializer, CourseUpdateSerializer, UserSerializer, OfflinePurchaseSerializer, TransactionCheckOutSerializer, ModuleSerializer, CourseSerializer, AssessmentSerializer, CertificationSerializer, CategorySerializer, ProductSerializer, UserdetailsSerializer, OTPSerializer,UserAssessmentScore, UserCourseProgress, TasktrackSerializer, UserAssessmentSerialiser,UserCertificationSerialiser, UserReviewSerializer, delserialiser, Productreviewserialiser,SignUpSerializer,subscribeserialiser, transactiondetails,cartserialiser,cartserial, Adserial
 from .methods import generate_otp, purchasedUser_encode_token,visitor_encode_token,courseSubscribedUser_encode_token, admin_encode_token, encrypt_password
 from .authentication import PurchasedUserTokenAuthentication, CourseSubscribedUserTokenAuthentication, AdminTokenAuthentication, VisitorTokenAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -121,7 +121,7 @@ class SendOTP(APIView):
                     If you have any questions, feel free to reach out to us at info@mi-bot.com.
 
                     Best regards,  
-                    The MiBot Ventures Team
+                    The MiBOT Ventures Team
                     """,
                     os.getenv('EMAIL_HOST_USER'),
                     [email],
@@ -143,7 +143,7 @@ class SendOTP(APIView):
                     If you have any questions, feel free to reach out to us at info@mi-bot.com.
 
                     Best regards,  
-                    The MiBot Ventures Team
+                    The MiBOT Ventures Team
                     """,
                     os.getenv('EMAIL_HOST_USER'),
                     [email],
@@ -291,7 +291,7 @@ class Forget(APIView):
                     If you have any questions, feel free to reach out to us at info@mi-bot.com.
 
                     Best regards,  
-                    The MiBot Ventures Team
+                    The MiBOT Ventures Team
                     """,
                     os.getenv('EMAIL_HOST_USER'),
                     [email],
@@ -1478,6 +1478,7 @@ class UserCourses(APIView):
             course_data = UserCourseProgress.objects.filter(user=user_id)
             certification_data = UserCertificationScore.objects.filter(user=user_id)
 
+            courses_started = 0
             if course_data:
                 courses_started = len(course_data)
                 for courses in course_data:
@@ -1514,13 +1515,25 @@ class UserCourses(APIView):
                     per = (certify.obtained_marks / certify.total_marks) * 100
                     if per >= 65:
                         completed += 1
+
             user = User.objects.filter(id=user_id).first()
+            if not user:
+                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Check if profile exists and has an associated file
+            profile_url = None
+            if user.profile and hasattr(user.profile, 'url'):
+                try:
+                    profile_url = user.profile.url  # Attempt to access the URL
+                except ValueError:
+                    profile_url = None  # Handle case where no file is associated
+
             # Construct response
             datas = {
                 'completed_course_count': completed,
-                'course_started':courses_started,
-                'name':user.username,
-                'profiles': user.profile.url,
+                'course_started': courses_started,
+                'name': user.username,
+                'profile': profile_url,
                 'ongoing_courses': ongoing_courses
             }
             return Response({'data': datas}, status=status.HTTP_200_OK)
@@ -1766,7 +1779,8 @@ class carttransact(APIView):
             # Fetch the Transaction instance
             try:
                 transaction = Transaction.objects.get(id=transact_id)
-            except Transaction.DoesNotExist:
+            except Transaction.DoesNotExist as e:
+                print("Exception:", str(e))
                 return Response({'error': 'Transaction does not exist'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Fetch the cart items belonging to the user
@@ -1826,3 +1840,95 @@ class buyerct(APIView):
         except Exception as e:
             print("Exception:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class Advertisement(APIView):
+    def get(self, request):
+        try:
+            data = AdvertisementBanner.objects.all()
+            Ad = Adserial(data, many=True)
+            return Response({'data': Ad.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self,request):
+        try:
+            data = request.data
+            serializer = Adserial(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'data': 'success'}, status=status.HTTP_200_OK)
+            else:
+                print(serializer.errors)
+                return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print("Exception:", str(e))  
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# class certify(APIView):
+#     def get(self, request):
+#         try:
+#             userid = request.query_params.get('user_id')
+#             certification_data = UserCertificationScore.objects.filter(user=userid)
+#             certify_list = []
+#             if certification_data:
+#                 for certify in certification_data:
+#                     per = (certify.obtained_marks / certify.total_marks) * 100
+#                     if per >= 65:
+#                         course = Course.objects.filter(id=certify.course)
+#                         certify_list.append({
+#                             'course_name': course.name,
+#                         })
+#             user = User.objects.filter(id=userid).first()
+#             name = user.first_name
+#             if(user.middlename != None):
+#                 name = name + user.middle_name
+#             if(user.last_name != None):
+#                 name = name + user.last_name
+#             data = {
+#                 'certificates':certify_list,
+#                 'user_name': name
+#             }
+#             return Response({'data': data}, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             print("Exception:", str(e))  
+#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class Certify(APIView):
+    def get(self, request):
+        try:
+            # Get the user ID from query parameters
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fetch user details
+            user = User.objects.filter(id=user_id).first()
+            if not user:
+                return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Construct the full name
+            full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
+
+            # Fetch certifications and related course details
+            certification_data = UserCertificationScore.objects.filter(user_id=user_id).select_related('course')
+            certify_list = []
+            for certify in certification_data:
+                if certify.total_marks > 0:  # Avoid division by zero
+                    percentage = (certify.obtained_marks / certify.total_marks) * 100
+                    if percentage >= 65:
+                        certify_list.append({
+                            'course_name': certify.course.course_name,  # Using select_related for optimization
+                        })
+
+            # Prepare response data
+            data = {
+                'certificates': certify_list,
+                'user_name': full_name
+            }
+            return Response({'data': data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Log and return the error
+            print("Exception:", str(e))
+            return Response({'error': f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

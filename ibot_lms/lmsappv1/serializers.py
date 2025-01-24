@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category, ProductReview, SubscriptionMoney, CartData
+from .models import User, OfflinePurchase, Transaction, Course, Module, Assessment, Certification, CertificationQuestion, OTP, Product, UserCourseProgress,UserAssessmentScore, UserCertificationScore,UserReview,Deleteaccount, Category, ProductReview, SubscriptionMoney, CartData, AdvertisementBanner
 from django.core.files.storage import default_storage
 
 # Serializer for User model
@@ -81,7 +81,7 @@ class CertificationsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Certification
-        fields = ['name', 'description', 'duration', 'questions', 'course']  
+        fields = ['name', 'description', 'questions', 'course']  
 
     def create(self, validated_data):
         questions_data = validated_data.pop('questions')
@@ -102,7 +102,6 @@ class CertificationsSerializer(serializers.ModelSerializer):
         questions_data = validated_data.pop('questions')
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        instance.duration = validated_data.get('duration', instance.duration)
         instance.save()
 
         for question_data in questions_data:
@@ -126,7 +125,7 @@ class CertificationSerializer(serializers.ModelSerializer):
     questions = CertificationQuestionSerializer(many=True)
     class Meta:
         model = Certification
-        fields = ['name', 'description', 'duration', 'questions']
+        fields = ['name', 'description', 'questions']
 
     def create(self, validated_data):
         questions_data = validated_data.pop('questions')
@@ -240,3 +239,8 @@ class cartserial(serializers.ModelSerializer):
         class Meta:
             model = CartData
             fields = ['id','quantity','user','product','amount']
+
+class Adserial(serializers.ModelSerializer):
+    class Meta:
+        model = AdvertisementBanner
+        fields = '__all__'
